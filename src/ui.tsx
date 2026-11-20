@@ -13,6 +13,18 @@ export const styles = StyleSheet.create({
   delete: { color: '#c0392b' },
 });
 
+// Shown in every tab's header so people know a change reached the server.
+export function SyncStatus() {
+  const { saving, failed } = useInventory();
+  const [label, color] = saving ? ['Saving…', '#c8a24a'] : failed ? ['Not saved', '#b4382b'] : ['Saved', '#3d9a5b'];
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 16 }} accessibilityLiveRegion="polite">
+      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+      <Text style={{ fontSize: 12, color: failed && !saving ? color : '#6b625b' }}>{label}</Text>
+    </View>
+  );
+}
+
 const confirm = (message: string, onYes: () => void) =>
   Platform.OS === 'web'
     ? window.confirm(message) && onYes()

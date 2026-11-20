@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { styles } from '@/ui';
 
@@ -25,6 +25,10 @@ export const stockKey = (storeId: number, productId: number) => `${storeId}:${pr
 
 type Ctx = {
   data: Inventory;
+  // True while a change is on its way to the server.
+  saving: boolean;
+  // The last request failed, so recent changes may not be saved.
+  failed: boolean;
   setCount: (storeId: number, productId: number, count: number) => void;
   adjust: (storeId: number, productId: number, delta: number) => void;
   add: (list: List, name: string) => void;
@@ -38,9 +42,21 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [code, setCode] = useState<string | null | undefined>(undefined);
   const [data, setData] = useState<Inventory | null>(null);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Request counters: a response only replaces local data when nothing newer is in flight,
+  // so optimistic counts don't flicker back while taps are still saving.
+  const seq = useRef({ next: 0, lastWrite: 0, inFlight: 0, writes: 0 });
 
   const call = useCallback(
     async (body?: Action, teamCode = code) => {
+      const r = seq.current;
+      const id = ++r.next;
+      r.inFlight++;
+      if (body) {
+        r.lastWrite = id;
+        r.writes++;
+        setSaving(true);
+      }
       try {
         const res = await fetch('/api/inventory', {
           method: body ? 'POST' : 'GET',
@@ -55,10 +71,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         }
         // 409 still carries the current inventory: someone else deleted that product or store.
         if (!res.ok && res.status !== 409) throw new Error(await res.text());
-        setData(await res.json());
+        const next = await res.json();
+        if (r.inFlight === 1 && id >= r.lastWrite) setData(next);
         setError('');
       } catch {
         setError("Couldn't reach the server. Your last change may not have saved.");
+      } finally {
+        r.inFlight--;
+        if (body && --r.writes === 0) setSaving(false);
       }
     },
     [code],
@@ -91,10 +111,25 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     );
   if (!data) return <Text style={styles.empty}>{error || 'Loading…'}</Text>;
 
+  // Show the new count on tap; the server's answer replaces it once all saves land.
+  const optimistic = (storeId: number, productId: number, next: (count: number) => number) => {
+    const key = stockKey(storeId, productId);
+    setData((d) => d && { ...d, stock: { ...d.stock, [key]: next(d.stock[key] ?? 0) } });
+  };
+
   const ctx: Ctx = {
     data,
-    setCount: (storeId, productId, count) => call({ type: 'set', storeId, productId, count: Math.max(0, Math.floor(count) || 0) }),
-    adjust: (storeId, productId, delta) => call({ type: 'adjust', storeId, productId, delta }),
+    saving,
+    failed: !!error,
+    setCount: (storeId, productId, count) => {
+      count = Math.max(0, Math.floor(count) || 0);
+      optimistic(storeId, productId, () => count);
+      call({ type: 'set', storeId, productId, count });
+    },
+    adjust: (storeId, productId, delta) => {
+      optimistic(storeId, productId, (n) => Math.max(0, n + delta));
+      call({ type: 'adjust', storeId, productId, delta });
+    },
     add: (list, name) => call({ type: 'add', list, name }),
     remove: (list, id) => call({ type: 'remove', list, id }),
     signOut: () => {
