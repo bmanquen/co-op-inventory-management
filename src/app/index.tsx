@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Inventory, stockKey, useInventory } from '@/inventory';
 import { styles as s } from '@/ui';
@@ -151,41 +151,43 @@ function StorePicker({ current, onPick, onClose }: { current: number; onPick: (i
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close store list" />
-      <View style={[styles.sheet, { paddingBottom: 16 + insets.bottom }]}>
-        <View style={styles.grabber} />
-        <Text style={styles.sheetTitle}>Choose a store</Text>
-        <TextInput
-          style={styles.search}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search stores"
-          autoFocus
-          autoCorrect={false}
-          onSubmitEditing={() => matches[0] && onPick(matches[0].id)}
-          accessibilityLabel="Search stores"
-        />
-        <ScrollView keyboardShouldPersistTaps="handled">
-          {matches.map((st) => {
-            const t = tally(data, st.id);
-            const selected = st.id === current;
-            return (
-              <Pressable
-                key={st.id}
-                onPress={() => onPick(st.id)}
-                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}>
-                <Text style={styles.check}>{selected ? '✓' : ''}</Text>
-                <Text style={[styles.fill, styles.optionText, selected && styles.optionActive]}>{st.name}</Text>
-                {t.out > 0 && <Badge level="out" label={`${t.out} out`} />}
-                {t.low > 0 && <Badge level="low" label={`${t.low} low`} />}
-              </Pressable>
-            );
-          })}
-          {matches.length === 0 && <Text style={styles.noMatch}>No stores match “{query}”</Text>}
-        </ScrollView>
-      </View>
+      {/* Keeps the sheet above the iOS keyboard; a Modal doesn't move out of its way on its own. */}
+      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close store list" />
+        <View style={[styles.sheet, { paddingBottom: 16 + insets.bottom }]}>
+          <View style={styles.grabber} />
+          <Text style={styles.sheetTitle}>Choose a store</Text>
+          <TextInput
+            style={styles.search}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search stores"
+            autoCorrect={false}
+            onSubmitEditing={() => matches[0] && onPick(matches[0].id)}
+            accessibilityLabel="Search stores"
+          />
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {matches.map((st) => {
+              const t = tally(data, st.id);
+              const selected = st.id === current;
+              return (
+                <Pressable
+                  key={st.id}
+                  onPress={() => onPick(st.id)}
+                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}>
+                  <Text style={styles.check}>{selected ? '✓' : ''}</Text>
+                  <Text style={[styles.fill, styles.optionText, selected && styles.optionActive]}>{st.name}</Text>
+                  {t.out > 0 && <Badge level="out" label={`${t.out} out`} />}
+                  {t.low > 0 && <Badge level="low" label={`${t.low} low`} />}
+                </Pressable>
+              );
+            })}
+            {matches.length === 0 && <Text style={styles.noMatch}>No stores match “{query}”</Text>}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -249,7 +251,7 @@ const styles = StyleSheet.create({
   toastText: { flex: 1, color: '#fff', fontSize: 14 },
   toastAction: { color: '#f3c79f', fontWeight: '700', fontSize: 14 },
   scrim: { flex: 1, backgroundColor: 'rgba(31,26,22,0.32)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '80%', paddingHorizontal: 16, paddingTop: 8, backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  sheet: { maxHeight: '80%', paddingHorizontal: 16, paddingTop: 8, backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   grabber: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3, backgroundColor: '#d9d1ca', marginBottom: 12 },
   sheetTitle: { fontSize: 17, fontWeight: '700', marginBottom: 12 },
   search: { paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, borderRadius: 10, backgroundColor: '#f8f2ec', marginBottom: 8 },
