@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# shared inventory database
+data/
+
+# orb-local Amp files (portal manifests)
+.amp/
