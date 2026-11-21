@@ -1,0 +1,35 @@
+forma coffee
+
+// The React Native app's colours (src/app/index.tsx, src/ui.tsx, React Navigation's light theme).
+// That app is light-only, so every token is fixed.
+theme
+  brand = #6f4e37  scheme=fixed
+  ink = #000000  scheme=fixed
+  ink.nav = #1c1c1e  scheme=fixed
+  ink.nav-dim = #6b625b  scheme=fixed
+  ink.on-brand = #ffffff  scheme=fixed
+  ink.strong = #1f1a16  scheme=fixed
+  ink.muted = #6b625b  scheme=fixed
+  ink.empty = #6b625b  scheme=fixed
+  ink.disabled = #c9bdb3  scheme=fixed
+  ink.delete = #c0392b  scheme=fixed
+  surface = #ffffff  scheme=fixed
+  surface.header = #fbf8f5  scheme=fixed
+  surface.tint = #f8f2ec  scheme=fixed
+  surface.chip = #f1e7df  scheme=fixed
+  line = #ebe3dc  scheme=fixed
+  line.nav = #d8d8d8  scheme=fixed
+  line.list = #eeeeee  scheme=fixed
+  line.field = #dddddd  scheme=fixed
+  line.grabber = #d9d1ca  scheme=fixed
+  out.ink = #b4382b  scheme=fixed
+  out.fill = #fbe9e6  scheme=fixed
+  out.row = #fdf3f1  scheme=fixed
+  low.ink = #8a5800  scheme=fixed
+  low.fill = #fdf1d8  scheme=fixed
+  status.saved = #3d9a5b  scheme=fixed
+  status.saving = #c8a24a  scheme=fixed
+  toast.fill = #2a231e  scheme=fixed
+  toast.ink = #ffffff  scheme=fixed
+  toast.action = #f3c79f  scheme=fixed
+  scrim = rgb(31 26 22 / 0.32)  scheme=fixed

@@ -1,0 +1,20 @@
+{
+  "$schema": ".exact/checkout/scripts/app.schema.json",
+  "name": "Coffee Inventory",
+  "short_name": "Coffee Inventory",
+  "id": "com.example.exact-trial-bcb743",
+  "start_url": "/",
+  "display": "standalone",
+  "app": {
+    "id": "com.example.exact-trial-bcb743",
+    "name": "Coffee Inventory"
+  },
+  "host": {
+    "web": {}
+  },
+  "deploy": {
+    "store": {
+      "web": "0"
+    }
+  }
+}

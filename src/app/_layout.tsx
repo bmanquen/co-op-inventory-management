@@ -11,7 +11,7 @@ const icon = (emoji: string) =>
 export default function Layout() {
   return (
     <InventoryProvider>
-      <Tabs screenOptions={{ tabBarActiveTintColor: '#6f4e37', headerRight: SyncStatus }}>
+      <Tabs screenOptions={{ tabBarActiveTintColor: '#6f4e37', tabBarInactiveTintColor: '#6b625b', headerRight: SyncStatus }}>
         <Tabs.Screen name="index" options={{ title: 'Stock', tabBarIcon: icon('📦') }} />
         <Tabs.Screen name="products" options={{ title: 'Products', tabBarIcon: icon('☕') }} />
         <Tabs.Screen name="stores" options={{ title: 'Stores', tabBarIcon: icon('🏪') }} />
