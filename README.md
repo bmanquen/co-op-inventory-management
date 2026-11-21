@@ -1,6 +1,6 @@
 # Inventory Management
 
-Expo app for tracking coffee product stock at each store. Data lives in Turso; every device signs in with a shared team code.
+App for tracking coffee product stock at each store. Data lives in Turso; every device signs in with a shared team code.
 
 ## Deploying (Expo Hosting)
 
@@ -10,18 +10,22 @@ Server settings (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `TEAM_CODE`) are EAS 
 
 ```bash
 # Preview link, uses the test database
-npx expo export --platform web && npx eas-cli@latest deploy --environment preview
+API_BASE_URL=https://bmanquen-inventory-management--preview.expo.app/api scripts/build-web.sh
+npx expo export --platform web && npx eas-cli@latest deploy --alias preview --environment preview
 
 # Production (https://bmanquen-inventory-management.expo.app), uses the real database
+API_BASE_URL=https://bmanquen-inventory-management.expo.app/api scripts/build-web.sh
 npx expo export --platform web && npx eas-cli@latest deploy --prod --environment production
 ```
 
-## Open on a phone (Expo Go)
+## The app (Expo Exact)
 
-Every merge to `main` also publishes an update that runs in the free **Expo Go** app (iPhone or Android), against the production API. To open it: install Expo Go from the App Store or Play Store, then on expo.dev open the project's **Updates**, tap the newest update, press **Preview**, and scan the QR code (iPhone: Camera app; Android: the scanner in Expo Go). By hand: `npx eas-cli@latest update --branch main --message "..." --environment production`.
+The app's screens are an [Expo Exact](https://github.com/expo/exact) app in `exact-trial/` (Contract view, `app.ts` data module, tests). `scripts/build-web.sh` builds it into `public/`, and `expo export` ships that page beside the API at `/api/*` (`src/app/api/[...path]+api.ts`, handler in `src/server/api.ts`). Both EAS workflows run the script before deploying; `API_BASE_URL` picks which site's API the page calls. Exact is not on npm, so the script clones expo/exact at a pinned commit and needs Rust (it installs rustup) and Bun.
 
-Expo Go only runs the newest Expo SDK, so the app has to be upgraded when the next SDK ships.
+`/api/inventory` is the old React Native app's API, kept so phones and open tabs still on that version keep working; remove it once nobody uses it.
+
+There is no Expo Go: Expo Go can't run Exact apps. iPhone builds need a Mac (`bun exact.mjs share` in `exact-trial/`).
 
 ## Local development
 
-See `.env.example`: run `turso dev --db-file data/dev.db` and `npx expo start --web`.
+See `exact-trial/AGENTS.md`: `bun server.ts` (same API handler, on Turso or a scratch database) and `bun exact.mjs web`. `bun exact.mjs test web` runs the tests.

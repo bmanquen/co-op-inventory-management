@@ -1,7 +1,8 @@
 import type { Answer, Overlay, Result, Sources } from './app.contract.d.ts';
 
-// The server's address, its one place: server.ts listens on it.
-export const API = 'http://127.0.0.1:8787';
+// The server's address, fixed at build: API_BASE_URL for a deploy (Expo Hosting's /api, see
+// scripts/build-web.sh), else the local server.ts, which listens on it.
+export const API = import.meta.env.API_BASE_URL ?? 'http://127.0.0.1:8787';
 export const grants = `net.fetch ${API}`;
 
 type Row = { id: number; name: string; out: number; low: number };

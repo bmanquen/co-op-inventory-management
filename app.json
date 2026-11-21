@@ -42,12 +42,6 @@
         "projectId": "4d4c6579-863f-444b-920d-c7e633e76283"
       }
     },
-    "owner": "bmanquen",
-    "runtimeVersion": {
-      "policy": "sdkVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/4d4c6579-863f-444b-920d-c7e633e76283"
-    }
+    "owner": "bmanquen"
   }
 }

@@ -45,3 +45,6 @@ data/
 
 # orb-local Amp files (portal manifests)
 .amp/
+
+# built by scripts/build-web.sh (the Exact app)
+/public/
