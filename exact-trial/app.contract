@@ -201,25 +201,16 @@ component App
   view
     main navigationKey=`${top(nav).id}` navigate=follow testId="app" width="100%" height="100%"
       display="flex" flex-direction="column" color-scheme="light" background-color="surface"
-      // A web app's navigation: a row of tabs across the top of the page, on a phone and a wide window.
-      row display=(signedIn ? "flex" : "none") box-sizing="border-box" padding="8px 4px"
-        background-color="surface.header" border-bottom="1px solid" border-bottom-color="line"
-        row role="tablist" appearance="none" testId="tabs" align-items="center" gap="4px" width="100%" max-width="55rem" margin="0px auto" padding="0px 4px" box-sizing="border-box" background-color="transparent" border="none"
-          for t in nav.tabs key=t.name
-            button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
-              appearance="none" -exact-hover-effect="highlight" class=Press display="flex" align-items="center" gap="6px" padding="8px 12px" border="none" border-radius="8px"
-              background-color=(nav.tab == t.name ? "surface.chip" : "transparent") color=(nav.tab == t.name ? "brand" : "ink.nav-dim")
-              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:location") aria-hidden=true
-              text (t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores") font-size="0.9375rem" font-weight=600
       // The tabs stay in the tree while signed out, hidden, so the routes keep their panels.
       column flex=1 min-height=0 position="relative" display=(signedIn ? "flex" : "none")
         for t in nav.tabs key=t.name
           column role="tabpanel" id=`panel-${t.name}` position="absolute" inset=0
             for e in t.stack key=e.id
-              column navigationKey=`${e.id}` position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface"
-                // A web page: the title and content keep a readable width, centred, on a wide window.
+              column navigationKey=`${e.id}` position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
+                // The route's first child, so on a phone it is the platform's navigation bar with a large title.
+                Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, web=host.web)
+                // A web page: the content keeps a readable width, centred, on a wide window.
                 column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
-                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed)
                   if t.name == "stock"
                     if stores.items.length == 0 and not pending(stores)
                       text "Add a store on the Stores tab first." color="ink.empty" text-align="center" padding="24px" testId="no-stores"
@@ -283,19 +274,46 @@ component App
                       input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name)
                         placeholder=(t.name == "products" ? "New product, e.g. Kenya AA 12oz" : "New store location")
                         aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
-                        appearance="none" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
+                        appearance="none" min-height="44px" box-sizing="border-box" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
                         ::placeholder
                           color="ink.muted"
-                      button press=addNew(t.name) testId=`add-${t.name}` appearance="none" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
+                      button press=addNew(t.name) testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
                         border="none" border-radius="6px" background-color="brand"
                         text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
-                    scroll flex=1 min-height=0
-                      for it in (t.name == "products" ? products.items : stores.items) key=it.id
-                        row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
-                          text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
-                          button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
-                            appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
-                            text "Delete" font-size="0.875rem" color="ink.delete"
+                    if host.web
+                      scroll flex=1 min-height=0
+                        for it in (t.name == "products" ? products.items : stores.items) key=it.id
+                          row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
+                            text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
+                            button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
+                              appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
+                              text "Delete" font-size="0.875rem" color="ink.delete"
+                    else
+                      // On a phone, a row swipes left to Delete, as in Mail; it still asks before it deletes.
+                      list appearance="auto" listStyle="plain" flex=1 min-height=0
+                        section
+                          for it in (t.name == "products" ? products.items : stores.items) key=it.id
+                            row delete=askRemove(t.name, it.id, it.name) testId=`${t.name}-${it.id}`
+                              text it.name
+      // The tabs. On the web, a web app's row across the top (order -1), centred to the content's width.
+      // On a phone, left to the platform: iOS's tab bar at the bottom, in reach of a thumb.
+      // accent-color tints the selected tab (and each tab's screen) in the brand brown, not iOS's blue.
+      row role="tablist" appearance=(host.web ? "none" : "auto") testId="tabs" display=(signedIn ? "flex" : "none") accent-color="brand"
+        order=(host.web ? -1 : 0) align-items="center" gap="4px" box-sizing="border-box"
+        padding=(host.web ? "8px max(8px, calc((100% - 55rem) / 2 + 8px))" : "0px")
+        background-color=(host.web ? "surface.header" : "transparent") border="none" border-bottom=(host.web ? "1px solid" : "none") border-bottom-color="line"
+        for t in nav.tabs key=t.name
+          if host.web
+            button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
+              appearance="none" -exact-hover-effect="highlight" class=Press display="flex" align-items="center" gap="6px" padding="8px 12px" border="none" border-radius="8px"
+              background-color=(nav.tab == t.name ? "surface.chip" : "transparent") color=(nav.tab == t.name ? "brand" : "ink.nav-dim")
+              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:location") aria-hidden=true
+              text (t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores") font-size="0.9375rem" font-weight=600
+          else
+            // A symbol over a label: a tab bar item.
+            button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
+              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:location")
+              text (t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores")
       if not signedIn
         // A root overlay over the hidden tabs (after them, positioned): iOS draws the tabs' native
         // container over anything beside the routes, so a sign-in in the flow would be covered.
@@ -329,11 +347,14 @@ component App
               border="none" border-radius="8px" background-color="transparent"
               // exact-accept lower-text-px-width
               text (s.id == current ? "✓" : "") width="16px" flex-shrink=0 color="brand" font-weight=700
-              text s.name flex=1 min-width=0 font-size="1rem" color=(s.id == current ? "brand" : "ink") font-weight=(s.id == current ? 600 : 400)
-              if s.out > 0
-                Level(label=`${s.out} out`, out=true)
-              if s.low > 0
-                Level(label=`${s.low} low`, out=false)
+              // The name gets the whole width; its badges sit under it, as on a Stock row.
+              column flex=1 min-width=0
+                text s.name font-size="1rem" color=(s.id == current ? "brand" : "ink") font-weight=(s.id == current ? 600 : 400)
+                row gap="6px"
+                  if s.out > 0
+                    Level(label=`${s.out} out`, out=true)
+                  if s.low > 0
+                    Level(label=`${s.low} low`, out=false)
           if storeMatches.length == 0
             text `No stores match “${storeQuery}”` color="ink.empty" padding="12px"
       // React Native asks with Alert.alert (iOS) or the browser's confirm() (web): this question, Cancel and Delete.
@@ -349,8 +370,11 @@ component Bar
     title: string
     saving: bool
     failed: bool
+    web: bool
   view
-    header appearance="none" display="flex" align-items="center" box-sizing="border-box" padding="20px 16px 12px" background-color="surface"
+    // Drawn as written on the web, centred to the content's width; on a phone, the platform's bar.
+    header appearance=(web ? "none" : "auto") display="flex" align-items="center" box-sizing="border-box"
+      padding="20px max(16px, calc((100% - 55rem) / 2 + 16px)) 12px" background-color="surface"
       text title role="heading" aria-level=1 font-size="1.5rem" font-weight=700 color="ink.strong" min-width=0
       column flex=1
       row align-items="center" gap="6px" role="status" testId="sync"
