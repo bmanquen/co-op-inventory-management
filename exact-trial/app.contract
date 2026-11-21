@@ -5,6 +5,8 @@ use EmptyState from "exact:content"
 
 routes nav
   tab stock "/"
+    // The store picker on a phone: a sheet over Stock. The web uses a dropdown and never opens it.
+    pick "/pick"
   tab products "/products"
   tab stores "/stores"
 
@@ -55,6 +57,8 @@ shape Reply
 fn replyError(r: option<Reply>): string = match r { case some(x) => x.error, case none => "" }
 // At or below this count a product needs restocking.
 fn isLow(n: number): bool = n <= 3
+// A store's row subtitle in the phone's picker: "1 out · 1 low", "4 out", "2 low".
+fn storeSummary(s: Item): string = s.out > 0 and s.low > 0 ? `${s.out} out · ${s.low} low` : s.out > 0 ? `${s.out} out` : `${s.low} low`
 
 component App
   // Kept across launches, as the React Native app keeps them in AsyncStorage.
@@ -129,16 +133,16 @@ component App
       code = draftCode.trim()
       draftCode = ""
 
-  // On the web the store button opens the dropdown itself (popovertarget); elsewhere, the sheet.
+  // On the web the store button opens the dropdown itself (popovertarget); elsewhere, the sheet route.
   action openStores
     storeQuery = ""
     if not host.web
-      showModal("store-sheet")
+      nav = go(nav, "/pick")
   action closeStores
     if host.web
       hidePopover("store-menu")
     else
-      close("store-sheet")
+      nav = back(nav)
   action editStoreQuery(v: string)
     storeQuery = v
   action pickStore(id: string)
@@ -199,102 +203,128 @@ component App
     send removed = removeName(code, doomedList, doomedId)
 
   view
-    main navigationKey=`${top(nav).id}` navigate=follow testId="app" width="100%" height="100%"
+    // navigationBack names the sheet's close button: a swipe down presses it.
+    main navigationKey=`${top(nav).id}` navigationBack="close" navigate=follow testId="app" width="100%" height="100%"
       display="flex" flex-direction="column" color-scheme="light" background-color="surface"
       // The tabs stay in the tree while signed out, hidden, so the routes keep their panels.
       column flex=1 min-height=0 position="relative" display=(signedIn ? "flex" : "none")
         for t in nav.tabs key=t.name
           column role="tabpanel" id=`panel-${t.name}` position="absolute" inset=0
             for e in t.stack key=e.id
-              column navigationKey=`${e.id}` position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
-                // The route's first child, so on a phone it is the platform's navigation bar with a large title.
-                Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, web=host.web)
-                // A web page: the content keeps a readable width, centred, on a wide window.
-                column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
-                  if t.name == "stock"
-                    if stores.items.length == 0 and not pending(stores)
-                      text "Add a store on the Stores tab first." color="ink.empty" text-align="center" padding="24px" testId="no-stores"
-                    else
-                      // exact-accept lower-list-beside-fixed
-                      column padding="4px 16px 16px" gap="12px" background-color="surface" border-bottom="1px solid" border-bottom-color="line"
-                        button press=openStores popovertarget=(host.web ? "store-menu" : "") aria-label=`Store: ${currentName}. Change store` testId="store" appearance="none" -exact-hover-effect="highlight" class=Press
-                          display="flex" align-items="center" gap="10px" padding="10px 12px" text-align="left" width="100%" box-sizing="border-box"
-                          background-color="surface" border="1px solid" border-color="line" border-radius="12px"
+              if e.name == "pick"
+                // A phone's store picker, as iOS's own pickers are: a sheet with a title bar, a close
+                // button, a search field in the bar, and the stores in an inset list, the current one checked.
+                column navigationKey=`${e.id}` navigationPresentation="modal" navigationDetent="medium large"
+                  navigationScroll="store-list" position="absolute" inset=0 display="flex" flex-direction="column" accent-color="brand"
+                  header display="flex" align-items="center" justify-content="space-between" padding="8px 16px"
+                    button id="close" press=closeStores aria-label="Close" testId="store-close"
+                      image "symbol:close"
+                    text "Choose a Store" role="heading" aria-level=2
+                    input type="search" value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search"
+                      aria-label="Search stores" testId="store-search" width="100%"
+                  list id="store-list" appearance="auto" listStyle="inset-grouped" flex=1 min-height=0
+                    section
+                      for s in storeMatches key=s.id
+                        button press=pickStore(s.id) role="radio" aria-checked=(s.id == current) testId=`pick-${s.id}`
                           column flex=1 min-width=0
-                            text "Counting at" font-size="0.75rem" color="ink.muted"
-                            text currentName font-size="1.0625rem" font-weight=700 color="ink.strong"
-                              line-clamp=2 testId="store-name"
-                          text "⌄" font-size="1.125rem" color="brand"
-                        row gap="6px"
-                          Chip(label=`All ${stock.lines.length}`, on=(not needsOnly), press=showRestock(false), id="filter-all")
-                          Chip(label=`Needs restock ${restock.length}`, on=needsOnly, press=showRestock(true), id="filter-restock")
-                      if stock.store != current
-                        column padding="24px" align-items="center"
-                          progress aria-label="Loading" testId="loading"
+                            text s.name
+                            if s.out > 0 or s.low > 0
+                              text storeSummary(s) font="-exact-footnote" color=(s.out > 0 ? "out.ink" : "low.ink")
+                          if s.id == current
+                            image "symbol:checkmark" color="brand"
+                      if storeMatches.length == 0
+                        row
+                          text `No stores match “${storeQuery}”` color="ink.empty"
+              else
+                column navigationKey=`${e.id}` position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
+                  // The route's first child, so on a phone it is the platform's navigation bar with a large title.
+                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, web=host.web)
+                  // A web page: the content keeps a readable width, centred, on a wide window.
+                  column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
+                    if t.name == "stock"
+                      if stores.items.length == 0 and not pending(stores)
+                        text "Add a store on the Stores tab first." color="ink.empty" text-align="center" padding="24px" testId="no-stores"
                       else
-                        scroll flex=1 min-height=0
-                          // Room for the undo message so it never covers the last row.
-                          column padding-bottom="80px"
-                            if shown.length == 0
-                              text (stock.lines.length == 0 ? "Add a product on the Products tab." : "Everything at this store is stocked.")
-                                color="ink.empty" text-align="center" padding="24px" testId="stock-empty"
-                            for l in shown key=l.id
-                              row testId=`line-${l.id}` align-items="center" flex-wrap="wrap" gap="12px" padding="12px 16px"
-                                border-bottom="1px solid" border-bottom-color="line" background-color=(l.count == 0 ? "out.row" : "surface")
-                                column flex="1 1 8rem" min-width=0
-                                  text l.name font-size="1rem" color="ink"
-                                  if l.count == 0
-                                    Level(label="Out of stock", out=true)
-                                  else if isLow(l.count)
-                                    Level(label="Low", out=false)
-                                row align-items="center" flex-shrink=0 margin-left="auto" padding="2px" font-size="min(-exact-body, 20px)" border-radius="12px" background-color="surface.tint"
-                                  button press=adjust(l.id, -1) disabled=(l.count == 0) aria-label=`Remove one ${l.name}` testId=`minus-${l.id}`
-                                    appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
-                                    display="flex" align-items="center" justify-content="center" padding=0
-                                    text "−" font-size="1.375em" color=(l.count == 0 ? "ink.disabled" : "brand")
-                                  input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
-                                    input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
-                                    aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}`
-                                    width=`${max(52, (countId == l.id ? countDraft : l.count.toString()).length * 12 + 16) / 18}em` box-sizing="border-box"
-                                    text-align="center" font-size="1.125em" font-weight=700 font-variant-numeric="tabular-nums" color="ink"
-                                    border="none" background-color="transparent" padding="8px 0px" border-radius="8px"
-                                  button press=adjust(l.id, 1) aria-label=`Add one ${l.name}` testId=`plus-${l.id}`
-                                    appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
-                                    display="flex" align-items="center" justify-content="center" padding=0
-                                    text "+" font-size="1.375em" color="brand"
-                      if undoShown
-                        row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
-                          padding="12px 14px" border-radius="14px" background-color="toast.fill"
-                          text `${undoName} set to ${undoCount}` color="toast.ink" font-size="0.875em" flex=1 min-width=0 line-clamp=2
-                          button press=undo testId="undo" appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" padding=0
-                            text "Undo" color="toast.action" font-weight=700 font-size="0.875em"
-                  else
-                    // Products and Stores are React Native's NameList: one add row, then a row per name.
-                    row align-items="center" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
-                      input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name)
-                        placeholder=(t.name == "products" ? "New product, e.g. Kenya AA 12oz" : "New store location")
-                        aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
-                        appearance="none" min-height="44px" box-sizing="border-box" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
-                        ::placeholder
-                          color="ink.muted"
-                      button press=addNew(t.name) testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
-                        border="none" border-radius="6px" background-color="brand"
-                        text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
-                    if host.web
-                      scroll flex=1 min-height=0
-                        for it in (t.name == "products" ? products.items : stores.items) key=it.id
-                          row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
-                            text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
-                            button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
-                              appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
-                              text "Delete" font-size="0.875rem" color="ink.delete"
+                        // exact-accept lower-list-beside-fixed
+                        column padding="4px 16px 16px" gap="12px" background-color="surface" border-bottom="1px solid" border-bottom-color="line"
+                          button press=openStores popovertarget=(host.web ? "store-menu" : "") aria-label=`Store: ${currentName}. Change store` testId="store" appearance="none" -exact-hover-effect="highlight" class=Press
+                            display="flex" align-items="center" gap="10px" padding="10px 12px" text-align="left" width="100%" box-sizing="border-box"
+                            background-color="surface" border="1px solid" border-color="line" border-radius="12px"
+                            column flex=1 min-width=0
+                              text "Counting at" font-size="0.75rem" color="ink.muted"
+                              text currentName font-size="1.0625rem" font-weight=700 color="ink.strong"
+                                line-clamp=2 testId="store-name"
+                            text "⌄" font-size="1.125rem" color="brand"
+                          row gap="6px"
+                            Chip(label=`All ${stock.lines.length}`, on=(not needsOnly), press=showRestock(false), id="filter-all")
+                            Chip(label=`Needs restock ${restock.length}`, on=needsOnly, press=showRestock(true), id="filter-restock")
+                        if stock.store != current
+                          column padding="24px" align-items="center"
+                            progress aria-label="Loading" testId="loading"
+                        else
+                          scroll flex=1 min-height=0
+                            // Room for the undo message so it never covers the last row.
+                            column padding-bottom="80px"
+                              if shown.length == 0
+                                text (stock.lines.length == 0 ? "Add a product on the Products tab." : "Everything at this store is stocked.")
+                                  color="ink.empty" text-align="center" padding="24px" testId="stock-empty"
+                              for l in shown key=l.id
+                                row testId=`line-${l.id}` align-items="center" flex-wrap="wrap" gap="12px" padding="12px 16px"
+                                  border-bottom="1px solid" border-bottom-color="line" background-color=(l.count == 0 ? "out.row" : "surface")
+                                  column flex="1 1 8rem" min-width=0
+                                    text l.name font-size="1rem" color="ink"
+                                    if l.count == 0
+                                      Level(label="Out of stock", out=true)
+                                    else if isLow(l.count)
+                                      Level(label="Low", out=false)
+                                  row align-items="center" flex-shrink=0 margin-left="auto" padding="2px" font-size="min(-exact-body, 20px)" border-radius="12px" background-color="surface.tint"
+                                    button press=adjust(l.id, -1) disabled=(l.count == 0) aria-label=`Remove one ${l.name}` testId=`minus-${l.id}`
+                                      appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
+                                      display="flex" align-items="center" justify-content="center" padding=0
+                                      text "−" font-size="1.375em" color=(l.count == 0 ? "ink.disabled" : "brand")
+                                    input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
+                                      input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
+                                      aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}`
+                                      width=`${max(52, (countId == l.id ? countDraft : l.count.toString()).length * 12 + 16) / 18}em` box-sizing="border-box"
+                                      text-align="center" font-size="1.125em" font-weight=700 font-variant-numeric="tabular-nums" color="ink"
+                                      border="none" background-color="transparent" padding="8px 0px" border-radius="8px"
+                                    button press=adjust(l.id, 1) aria-label=`Add one ${l.name}` testId=`plus-${l.id}`
+                                      appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
+                                      display="flex" align-items="center" justify-content="center" padding=0
+                                      text "+" font-size="1.375em" color="brand"
+                        if undoShown
+                          row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
+                            padding="12px 14px" border-radius="14px" background-color="toast.fill"
+                            text `${undoName} set to ${undoCount}` color="toast.ink" font-size="0.875em" flex=1 min-width=0 line-clamp=2
+                            button press=undo testId="undo" appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" padding=0
+                              text "Undo" color="toast.action" font-weight=700 font-size="0.875em"
                     else
-                      // On a phone, a row swipes left to Delete, as in Mail; it still asks before it deletes.
-                      list appearance="auto" listStyle="plain" flex=1 min-height=0
-                        section
+                      // Products and Stores are React Native's NameList: one add row, then a row per name.
+                      row align-items="center" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
+                        input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name)
+                          placeholder=(t.name == "products" ? "New product, e.g. Kenya AA 12oz" : "New store location")
+                          aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
+                          appearance="none" min-height="44px" box-sizing="border-box" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
+                          ::placeholder
+                            color="ink.muted"
+                        button press=addNew(t.name) testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
+                          border="none" border-radius="6px" background-color="brand"
+                          text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
+                      if host.web
+                        scroll flex=1 min-height=0
                           for it in (t.name == "products" ? products.items : stores.items) key=it.id
-                            row delete=askRemove(t.name, it.id, it.name) testId=`${t.name}-${it.id}`
-                              text it.name
+                            row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
+                              text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
+                              button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
+                                appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
+                                text "Delete" font-size="0.875rem" color="ink.delete"
+                      else
+                        // On a phone, a row swipes left to Delete, as in Mail; it still asks before it deletes.
+                        list appearance="auto" listStyle="plain" flex=1 min-height=0
+                          section
+                            for it in (t.name == "products" ? products.items : stores.items) key=it.id
+                              row delete=askRemove(t.name, it.id, it.name) testId=`${t.name}-${it.id}`
+                                text it.name
       // The tabs. On the web, a web app's row across the top (order -1), centred to the content's width.
       // On a phone, left to the platform: iOS's tab bar at the bottom, in reach of a thumb.
       // accent-color tints the selected tab (and each tab's screen) in the brand brown, not iOS's blue.
@@ -333,30 +363,35 @@ component App
                 text "Sign in" font-size="0.875rem" font-weight=600 color="ink.on-brand"
             if signInError != ""
               text signInError font-size="0.875rem" color="ink.delete" margin-top="12px" testId="sign-in-error"
-      // The store picker: a dropdown under the store button on the web, a sheet on phones.
-      StorePanel(web=host.web, still=media.prefersReducedMotion)
-        if not host.web
-          text "Choose a store" font-size="1.0625rem" font-weight=700 color="ink" margin-bottom="12px"
-        input value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search stores"
-          aria-label="Search stores" appearance="none" testId="store-search" width="100%" box-sizing="border-box"
-          font-size="1rem" color="ink" padding="10px 12px" border="none" border-radius="10px" background-color="surface.tint" margin-bottom="8px"
-        scroll flex=1 min-height=0
-          for s in storeMatches key=s.id
-            button press=pickStore(s.id) aria-pressed=(s.id == current) testId=`pick-${s.id}` appearance="none" -exact-hover-effect="highlight" class=Press
-              display="flex" align-items="center" gap="8px" width="100%" box-sizing="border-box" padding="10px 8px" text-align="left"
-              border="none" border-radius="8px" background-color="transparent"
-              // exact-accept lower-text-px-width
-              text (s.id == current ? "✓" : "") width="16px" flex-shrink=0 color="brand" font-weight=700
-              // The name gets the whole width; its badges sit under it, as on a Stock row.
-              column flex=1 min-width=0
-                text s.name font-size="1rem" color=(s.id == current ? "brand" : "ink") font-weight=(s.id == current ? 600 : 400)
-                row gap="6px"
-                  if s.out > 0
-                    Level(label=`${s.out} out`, out=true)
-                  if s.low > 0
-                    Level(label=`${s.low} low`, out=false)
-          if storeMatches.length == 0
-            text `No stores match “${storeQuery}”` color="ink.empty" padding="12px"
+      // The web's store picker: a dropdown as wide as the store button (the content column's 55rem less
+      // its 16 px padding each side; Exact has no anchor-size()), anchored under it (popovertarget),
+      // closed by Escape or a click elsewhere. A phone uses the pick route's sheet instead.
+      if host.web
+        column id="store-menu" popover="auto" aria-label="Choose a store" position-area="bottom span-right"
+          position-try-fallbacks="flip-block" width="min(calc(55rem - 32px), calc(100vw - 32px))" max-height="60vh" margin="6px 0px"
+          box-sizing="border-box" padding="8px" border="1px solid" border-color="line" border-radius="12px"
+          transform-origin="top left" animation=(media.prefersReducedMotion ? "none" : "menuIn 160ms cubic-bezier(0.23, 1, 0.32, 1)")
+          background-color="surface" box-shadow="0px 8px 24px rgb(31 26 22 / 0.16)"
+          input value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search stores"
+            aria-label="Search stores" appearance="none" testId="store-search" width="100%" box-sizing="border-box"
+            font-size="1rem" color="ink" padding="10px 12px" border="none" border-radius="10px" background-color="surface.tint" margin-bottom="8px"
+          scroll flex=1 min-height=0
+            for s in storeMatches key=s.id
+              button press=pickStore(s.id) aria-pressed=(s.id == current) testId=`pick-${s.id}` appearance="none" -exact-hover-effect="highlight" class=Press
+                display="flex" align-items="center" gap="8px" width="100%" box-sizing="border-box" padding="10px 8px" text-align="left"
+                border="none" border-radius="8px" background-color="transparent"
+                // exact-accept lower-text-px-width
+                text (s.id == current ? "✓" : "") width="16px" flex-shrink=0 color="brand" font-weight=700
+                // The name gets the whole width; its badges sit under it, as on a Stock row.
+                column flex=1 min-width=0
+                  text s.name font-size="1rem" color=(s.id == current ? "brand" : "ink") font-weight=(s.id == current ? 600 : 400)
+                  row gap="6px"
+                    if s.out > 0
+                      Level(label=`${s.out} out`, out=true)
+                    if s.low > 0
+                      Level(label=`${s.low} low`, out=false)
+            if storeMatches.length == 0
+              text `No stores match “${storeQuery}”` color="ink.empty" padding="12px"
       // React Native asks with Alert.alert (iOS) or the browser's confirm() (web): this question, Cancel and Delete.
       dialog id="remove" role="alertdialog" aria-label=`Delete ${doomedName} and its stock counts?`
         button commandfor="remove" command="close" testId="remove-cancel"
@@ -401,23 +436,3 @@ component Chip
     button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" class=Press padding="7px 12px" border="none" border-radius="999px"
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")
-
-// The store picker's frame. Web: a dropdown as wide as the store button (the content column's 55rem less
-// its 16 px padding each side; Exact has no anchor-size()), anchored under it (popovertarget), closed by
-// Escape or a click elsewhere. Elsewhere: an unpainted dialog, which iOS presents as a native sheet.
-component StorePanel
-  props
-    web: bool
-    still: bool
-  slot
-  view
-    if web
-      column id="store-menu" popover="auto" aria-label="Choose a store" position-area="bottom span-right"
-        position-try-fallbacks="flip-block" width="min(calc(55rem - 32px), calc(100vw - 32px))" max-height="60vh" margin="6px 0px"
-        box-sizing="border-box" padding="8px" border="1px solid" border-color="line" border-radius="12px"
-        transform-origin="top left" animation=(still ? "none" : "menuIn 160ms cubic-bezier(0.23, 1, 0.32, 1)")
-        background-color="surface" box-shadow="0px 8px 24px rgb(31 26 22 / 0.16)"
-        children
-    else
-      dialog id="store-sheet" aria-label="Choose a store" width="100%" box-sizing="border-box" padding="8px 16px 16px"
-        children
