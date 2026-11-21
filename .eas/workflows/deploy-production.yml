@@ -11,3 +11,8 @@ jobs:
     environment: production
     params:
       prod: true
+
+  phone:
+    name: Publish phone update (open in Expo Go)
+    type: update
+    environment: production

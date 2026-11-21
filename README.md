@@ -16,6 +16,12 @@ npx expo export --platform web && npx eas-cli@latest deploy --environment previe
 npx expo export --platform web && npx eas-cli@latest deploy --prod --environment production
 ```
 
+## Open on a phone (Expo Go)
+
+Every merge to `main` also publishes an update that runs in the free **Expo Go** app (iPhone or Android), against the production API. To open it: install Expo Go from the App Store or Play Store, then on expo.dev open the project's **Updates**, tap the newest update, press **Preview**, and scan the QR code (iPhone: Camera app; Android: the scanner in Expo Go). By hand: `npx eas-cli@latest update --branch main --message "..." --environment production`.
+
+Expo Go only runs the newest Expo SDK, so the app has to be upgraded when the next SDK ships.
+
 ## Local development
 
 See `.env.example`: run `turso dev --db-file data/dev.db` and `npx expo start --web`.
