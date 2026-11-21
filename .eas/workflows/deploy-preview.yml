@@ -1,0 +1,15 @@
+name: Deploy preview
+
+on:
+  pull_request: {}
+
+jobs:
+  deploy:
+    name: Deploy preview (test database)
+    type: deploy
+    environment: preview
+
+  comment:
+    name: Post preview link
+    needs: [deploy]
+    type: github-comment

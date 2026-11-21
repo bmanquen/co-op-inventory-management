@@ -4,6 +4,8 @@ Expo app for tracking coffee product stock at each store. Data lives in Turso; e
 
 ## Deploying (Expo Hosting)
 
+EAS Workflows deploy automatically: every pull request gets a preview deploy on the test database (`.eas/workflows/deploy-preview.yml`), and every merge to `main` deploys to production (`.eas/workflows/deploy-production.yml`). The commands below are for deploying by hand.
+
 Server settings (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `TEAM_CODE`) are EAS environment variables with **sensitive** visibility (Expo Hosting can't use secret ones). The `--environment` flag picks the database:
 
 ```bash
