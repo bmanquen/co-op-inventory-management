@@ -1,5 +1,5 @@
-// Trial: the coffee inventory app on Exact, matched to the React Native app on main (src/app,
-// src/ui.tsx, src/inventory.tsx): its sizes, colours (app.forma) and behaviour.
+// The coffee inventory app on Exact: the React Native app's behaviour and colours (app.forma),
+// laid out as a web app (a readable width, a sidebar of tabs when wide, a centred store dialog).
 // Data comes from server.ts (Turso), behind a shared team code.
 use EmptyState from "exact:content"
 
@@ -185,116 +185,117 @@ component App
               font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
               ::placeholder
                 color="ink"
-            button press=signIn testId="sign-in" appearance="none" margin-left="8px" padding="10px 16px"
+            button press=signIn testId="sign-in" appearance="none" -exact-hover-effect="highlight" margin-left="8px" padding="10px 16px"
               border="none" border-radius="6px" background-color="brand"
               text "Sign in" font-size="0.875rem" font-weight=600 color="ink.on-brand"
           if signInError != ""
             text signInError font-size="0.875rem" color="ink.delete" margin-top="12px" testId="sign-in-error"
+      // A web app's navigation: a row of tabs across the top of the page, on a phone and a wide window.
+      row role="tablist" appearance="none" testId="tabs" display=(signedIn ? "flex" : "none") align-items="center" gap="4px"
+        padding="8px 12px" box-sizing="border-box" background-color="surface.header" border-bottom="1px solid" border-bottom-color="line"
+        for t in nav.tabs key=t.name
+          button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
+            appearance="none" -exact-hover-effect="highlight" display="flex" align-items="center" gap="6px" padding="8px 12px" border="none" border-radius="8px"
+            background-color=(nav.tab == t.name ? "surface.chip" : "transparent") color=(nav.tab == t.name ? "brand" : "ink.nav-dim")
+            image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:location") aria-hidden=true
+            text (t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores") font-size="0.9375rem" font-weight=600
       // The tabs stay in the tree while signed out, hidden, so the routes keep their panels.
       column flex=1 min-height=0 position="relative" display=(signedIn ? "flex" : "none")
         for t in nav.tabs key=t.name
           column role="tabpanel" id=`panel-${t.name}` position="absolute" inset=0
             for e in t.stack key=e.id
               column navigationKey=`${e.id}` position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface"
-                Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed)
-                if t.name == "stock"
-                  if stores.items.length == 0 and not pending(stores)
-                    text "Add a store on the Stores tab first." color="ink.empty" text-align="center" padding="24px" testId="no-stores"
-                  else
-                    // exact-accept lower-list-beside-fixed
-                    column padding="12px 16px 16px" gap="10px" background-color="surface.header" border-bottom="1px solid" border-bottom-color="line"
-                      button press=openStores aria-label=`Store: ${currentName}. Change store` testId="store" appearance="none"
-                        display="flex" align-items="center" gap="10px" padding="10px 12px" text-align="left" width="100%" box-sizing="border-box"
-                        background-color="surface" border="1px solid" border-color="line" border-radius="12px"
-                        column flex=1 min-width=0
-                          text "Counting at" font-size="0.75rem" color="ink.muted"
-                          text currentName font-size="1.0625rem" font-weight=700 color="ink.strong"
-                            white-space="nowrap" overflow="hidden" text-overflow="ellipsis" testId="store-name"
-                        text "⌄" font-size="1.125rem" color="brand"
-                      row gap="6px"
-                        Chip(label=`All ${stock.lines.length}`, on=(not needsOnly), press=showRestock(false), id="filter-all")
-                        Chip(label=`Needs restock ${restock.length}`, on=needsOnly, press=showRestock(true), id="filter-restock")
-                    if stock.store != current
-                      column padding="24px" align-items="center"
-                        progress aria-label="Loading" testId="loading"
+                // A web page: the title and content keep a readable width, centred, on a wide window.
+                column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
+                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed)
+                  if t.name == "stock"
+                    if stores.items.length == 0 and not pending(stores)
+                      text "Add a store on the Stores tab first." color="ink.empty" text-align="center" padding="24px" testId="no-stores"
                     else
-                      scroll flex=1 min-height=0
-                        // Room for the undo message so it never covers the last row.
-                        column padding-bottom="80px"
-                          if shown.length == 0
-                            text (stock.lines.length == 0 ? "Add a product on the Products tab." : "Everything at this store is stocked.")
-                              color="ink.empty" text-align="center" padding="24px" testId="stock-empty"
-                          for l in shown key=l.id
-                            row testId=`line-${l.id}` align-items="center" flex-wrap="wrap" gap="12px" padding="12px 16px"
-                              border-bottom="1px solid" border-bottom-color="line" background-color=(l.count == 0 ? "out.row" : "surface")
-                              column flex="1 1 8rem" min-width=0
-                                text l.name font-size="1rem" color="ink"
-                                if l.count == 0
-                                  Level(label="Out of stock", out=true)
-                                else if isLow(l.count)
-                                  Level(label="Low", out=false)
-                              row align-items="center" flex-shrink=0 margin-left="auto" padding="2px" font-size="min(-exact-body, 20px)" border-radius="12px" background-color="surface.tint"
-                                button press=adjust(l.id, -1) disabled=(l.count == 0) aria-label=`Remove one ${l.name}` testId=`minus-${l.id}`
-                                  appearance="none" border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
-                                  display="flex" align-items="center" justify-content="center" padding=0
-                                  text "−" font-size="1.375em" color=(l.count == 0 ? "ink.disabled" : "brand")
-                                input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
-                                  input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
-                                  aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}`
-                                  width=`${max(52, (countId == l.id ? countDraft : l.count.toString()).length * 12 + 16) / 18}em` box-sizing="border-box"
-                                  text-align="center" font-size="1.125em" font-weight=700 font-variant-numeric="tabular-nums" color="ink"
-                                  border="none" background-color="transparent" padding="8px 0px" border-radius="8px"
-                                button press=adjust(l.id, 1) aria-label=`Add one ${l.name}` testId=`plus-${l.id}`
-                                  appearance="none" border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
-                                  display="flex" align-items="center" justify-content="center" padding=0
-                                  text "+" font-size="1.375em" color="brand"
-                    if undoShown
-                      row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
-                        padding="12px 14px" border-radius="14px" background-color="toast.fill"
-                        text `${undoName} set to ${undoCount}` color="toast.ink" font-size="0.875em" flex=1 min-width=0 line-clamp=2
-                        button press=undo testId="undo" appearance="none" border="none" background-color="transparent" padding=0
-                          text "Undo" color="toast.action" font-weight=700 font-size="0.875em"
-                else
-                  // Products and Stores are React Native's NameList: one add row, then a row per name.
-                  row align-items="center" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
-                    input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name)
-                      placeholder=(t.name == "products" ? "New product, e.g. Kenya AA 12oz" : "New store location")
-                      aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
-                      appearance="none" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
-                      ::placeholder
-                        color="ink"
-                    button press=addNew(t.name) testId=`add-${t.name}` appearance="none" margin-left="8px" padding="10px 16px"
-                      border="none" border-radius="6px" background-color="brand"
-                      text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
-                  scroll flex=1 min-height=0
-                    for it in (t.name == "products" ? products.items : stores.items) key=it.id
-                      row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
-                        text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
-                        button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
-                          appearance="none" margin-left="auto" border="none" background-color="transparent" padding=0
-                          text "Delete" font-size="0.875rem" color="ink.delete"
-      // React Navigation's bottom tabs: 49 px, a hairline on top, an 18 px emoji over a 10 px label.
-      row role="tablist" testId="tabs" display=(signedIn ? "flex" : "none") height="49px" box-sizing="border-box"
-        background-color="surface" border-top="1px solid" border-top-color="line.nav"
-        Tab(name="stock", label="Stock", icon="📦", on=(nav.tab == "stock"), press=tab("stock"))
-        Tab(name="products", label="Products", icon="☕", on=(nav.tab == "products"), press=tab("products"))
-        Tab(name="stores", label="Stores", icon="🏪", on=(nav.tab == "stores"), press=tab("stores"))
-      // The store picker: a sheet from the bottom over a brown scrim; Escape closes it. Its top
-      // corners are square because the React Native sheet renders square on the web (its 20 px radius
-      // is painted over).
-      dialog id="store-sheet" aria-label="Choose a store" position="absolute" top="auto" left=0 right=0 bottom=0 margin=0
-        width="100%" max-width="100%" max-height="80%" box-sizing="border-box" padding="8px 16px 16px" border="none"
-        border-radius="0px" background-color="surface" box-shadow="none"
+                      // exact-accept lower-list-beside-fixed
+                      column padding="12px 16px 16px" gap="10px" background-color="surface.header" border-bottom="1px solid" border-bottom-color="line"
+                        button press=openStores aria-label=`Store: ${currentName}. Change store` testId="store" appearance="none" -exact-hover-effect="highlight"
+                          display="flex" align-items="center" gap="10px" padding="10px 12px" text-align="left" width="100%" box-sizing="border-box"
+                          background-color="surface" border="1px solid" border-color="line" border-radius="12px"
+                          column flex=1 min-width=0
+                            text "Counting at" font-size="0.75rem" color="ink.muted"
+                            text currentName font-size="1.0625rem" font-weight=700 color="ink.strong"
+                              white-space="nowrap" overflow="hidden" text-overflow="ellipsis" testId="store-name"
+                          text "⌄" font-size="1.125rem" color="brand"
+                        row gap="6px"
+                          Chip(label=`All ${stock.lines.length}`, on=(not needsOnly), press=showRestock(false), id="filter-all")
+                          Chip(label=`Needs restock ${restock.length}`, on=needsOnly, press=showRestock(true), id="filter-restock")
+                      if stock.store != current
+                        column padding="24px" align-items="center"
+                          progress aria-label="Loading" testId="loading"
+                      else
+                        scroll flex=1 min-height=0
+                          // Room for the undo message so it never covers the last row.
+                          column padding-bottom="80px"
+                            if shown.length == 0
+                              text (stock.lines.length == 0 ? "Add a product on the Products tab." : "Everything at this store is stocked.")
+                                color="ink.empty" text-align="center" padding="24px" testId="stock-empty"
+                            for l in shown key=l.id
+                              row testId=`line-${l.id}` align-items="center" flex-wrap="wrap" gap="12px" padding="12px 16px"
+                                border-bottom="1px solid" border-bottom-color="line" background-color=(l.count == 0 ? "out.row" : "surface")
+                                column flex="1 1 8rem" min-width=0
+                                  text l.name font-size="1rem" color="ink"
+                                  if l.count == 0
+                                    Level(label="Out of stock", out=true)
+                                  else if isLow(l.count)
+                                    Level(label="Low", out=false)
+                                row align-items="center" flex-shrink=0 margin-left="auto" padding="2px" font-size="min(-exact-body, 20px)" border-radius="12px" background-color="surface.tint"
+                                  button press=adjust(l.id, -1) disabled=(l.count == 0) aria-label=`Remove one ${l.name}` testId=`minus-${l.id}`
+                                    appearance="none" -exact-hover-effect="highlight" border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
+                                    display="flex" align-items="center" justify-content="center" padding=0
+                                    text "−" font-size="1.375em" color=(l.count == 0 ? "ink.disabled" : "brand")
+                                  input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
+                                    input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
+                                    aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}`
+                                    width=`${max(52, (countId == l.id ? countDraft : l.count.toString()).length * 12 + 16) / 18}em` box-sizing="border-box"
+                                    text-align="center" font-size="1.125em" font-weight=700 font-variant-numeric="tabular-nums" color="ink"
+                                    border="none" background-color="transparent" padding="8px 0px" border-radius="8px"
+                                  button press=adjust(l.id, 1) aria-label=`Add one ${l.name}` testId=`plus-${l.id}`
+                                    appearance="none" -exact-hover-effect="highlight" border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
+                                    display="flex" align-items="center" justify-content="center" padding=0
+                                    text "+" font-size="1.375em" color="brand"
+                      if undoShown
+                        row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
+                          padding="12px 14px" border-radius="14px" background-color="toast.fill"
+                          text `${undoName} set to ${undoCount}` color="toast.ink" font-size="0.875em" flex=1 min-width=0 line-clamp=2
+                          button press=undo testId="undo" appearance="none" -exact-hover-effect="highlight" border="none" background-color="transparent" padding=0
+                            text "Undo" color="toast.action" font-weight=700 font-size="0.875em"
+                  else
+                    // Products and Stores are React Native's NameList: one add row, then a row per name.
+                    row align-items="center" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
+                      input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name)
+                        placeholder=(t.name == "products" ? "New product, e.g. Kenya AA 12oz" : "New store location")
+                        aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
+                        appearance="none" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
+                        ::placeholder
+                          color="ink"
+                      button press=addNew(t.name) testId=`add-${t.name}` appearance="none" -exact-hover-effect="highlight" margin-left="8px" padding="10px 16px"
+                        border="none" border-radius="6px" background-color="brand"
+                        text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
+                    scroll flex=1 min-height=0
+                      for it in (t.name == "products" ? products.items : stores.items) key=it.id
+                        row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
+                          text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
+                          button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
+                            appearance="none" -exact-hover-effect="highlight" margin-left="auto" border="none" background-color="transparent" padding=0
+                            text "Delete" font-size="0.875rem" color="ink.delete"
+      // The store picker: a centred dialog over a scrim; Escape closes it.
+      dialog id="store-sheet" aria-label="Choose a store" width="min(480px, calc(100% - 32px))" max-height="80%"
+        box-sizing="border-box" padding="20px" border="none" border-radius="12px" background-color="surface"
         ::backdrop
           background-color="scrim"
-        column width="36px" height="5px" border-radius="3px" background-color="line.grabber" margin="0px auto 12px"
         text "Choose a store" font-size="1.0625rem" font-weight=700 color="ink" margin-bottom="12px"
         input value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search stores"
           aria-label="Search stores" appearance="none" testId="store-search" width="100%" box-sizing="border-box"
           font-size="1rem" color="ink" padding="10px 12px" border="none" border-radius="10px" background-color="surface.tint" margin-bottom="8px"
         scroll flex=1 min-height=0
           for s in storeMatches key=s.id
-            button press=pickStore(s.id) aria-pressed=(s.id == current) testId=`pick-${s.id}` appearance="none"
+            button press=pickStore(s.id) aria-pressed=(s.id == current) testId=`pick-${s.id}` appearance="none" -exact-hover-effect="highlight"
               display="flex" align-items="center" gap="8px" width="100%" padding="14px 0px" text-align="left"
               border="none" border-bottom="1px solid" border-bottom-color="line" background-color="transparent"
               // exact-accept lower-text-px-width
@@ -320,7 +321,7 @@ component Bar
     saving: bool
     failed: bool
   view
-    header display="flex" align-items="center" height="64px" box-sizing="border-box" padding="1px 16px 0px"
+    header appearance="none" display="flex" align-items="center" height="64px" box-sizing="border-box" padding="1px 16px 0px"
       background-color="surface" border-bottom="1px solid" border-bottom-color="line.nav"
       text title role="heading" aria-level=1 font-size="1.125rem" font-weight=500 line-height="21px" color="ink.nav" min-width=0
       column flex=1
@@ -345,20 +346,6 @@ component Chip
     press: action
     id: string
   view
-    button press=press aria-pressed=on testId=id appearance="none" padding="7px 12px" border="none" border-radius="999px"
+    button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" padding="7px 12px" border="none" border-radius="999px"
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")
-
-component Tab
-  props
-    name: string
-    label: string
-    icon: string
-    on: bool
-    press: action
-  view
-    button role="tab" aria-controls=`panel-${name}` aria-selected=on press=press testId=`tab-${name}` flex=1 appearance="none"
-      border="none" background-color="transparent" display="flex" flex-direction="column" align-items="center" padding="8px 0px 0px" gap="3px"
-      column height="22px" justify-content="center"
-        text icon font-size="1.125rem"
-      text label font-size="0.625rem" height="10px" font-weight=500 color=(on ? "brand" : "ink.nav-dim")
