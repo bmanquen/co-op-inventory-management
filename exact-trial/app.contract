@@ -375,7 +375,8 @@ component Chip
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")
 
-// The store picker's frame. Web: a dropdown anchored under the store button (popovertarget), closed by
+// The store picker's frame. Web: a dropdown as wide as the store button (the content column's 55rem less
+// its 16 px padding each side; Exact has no anchor-size()), anchored under it (popovertarget), closed by
 // Escape or a click elsewhere. Elsewhere: an unpainted dialog, which iOS presents as a native sheet.
 component StorePanel
   props
@@ -385,7 +386,7 @@ component StorePanel
   view
     if web
       column id="store-menu" popover="auto" aria-label="Choose a store" position-area="bottom span-right"
-        position-try-fallbacks="flip-block" width="min(28rem, calc(100vw - 32px))" max-height="60vh" margin="6px 0px"
+        position-try-fallbacks="flip-block" width="min(calc(55rem - 32px), calc(100vw - 32px))" max-height="60vh" margin="6px 0px"
         box-sizing="border-box" padding="8px" border="1px solid" border-color="line" border-radius="12px"
         transform-origin="top left" animation=(still ? "none" : "menuIn 160ms cubic-bezier(0.23, 1, 0.32, 1)")
         background-color="surface" box-shadow="0px 8px 24px rgb(31 26 22 / 0.16)"
