@@ -201,22 +201,6 @@ component App
   view
     main navigationKey=`${top(nav).id}` navigate=follow testId="app" width="100%" height="100%"
       display="flex" flex-direction="column" color-scheme="light" background-color="surface"
-      if not signedIn
-        // A compact sign-in form, centred in the window.
-        column flex=1 justify-content="center" width="100%" max-width="24rem" margin="0px auto" box-sizing="border-box" padding="24px"
-          text "Coffee Inventory" role="heading" aria-level=1 font-size="1.5rem" font-weight=700 color="ink.strong" margin-bottom="4px"
-          text "Enter your team code to see store inventory." font-size="0.9375rem" color="ink.muted" margin-bottom="16px"
-          row
-            input type="password" value=draftCode input=editCode submit=signIn placeholder="Team code"
-              aria-label="Team code" autocapitalize="none" testId="code" flex=1 min-width=0 appearance="none"
-              font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
-              ::placeholder
-                color="ink.muted"
-            button press=signIn testId="sign-in" appearance="none" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
-              border="none" border-radius="6px" background-color="brand"
-              text "Sign in" font-size="0.875rem" font-weight=600 color="ink.on-brand"
-          if signInError != ""
-            text signInError font-size="0.875rem" color="ink.delete" margin-top="12px" testId="sign-in-error"
       // A web app's navigation: a row of tabs across the top of the page, on a phone and a wide window.
       row display=(signedIn ? "flex" : "none") box-sizing="border-box" padding="8px 4px"
         background-color="surface.header" border-bottom="1px solid" border-bottom-color="line"
@@ -312,6 +296,25 @@ component App
                           button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
                             appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
                             text "Delete" font-size="0.875rem" color="ink.delete"
+      if not signedIn
+        // A root overlay over the hidden tabs (after them, positioned): iOS draws the tabs' native
+        // container over anything beside the routes, so a sign-in in the flow would be covered.
+        column position="absolute" inset=0 display="flex" background-color="surface"
+          // A compact sign-in form, centred in the window.
+          column flex=1 justify-content="center" width="100%" max-width="24rem" margin="0px auto" box-sizing="border-box" padding="24px"
+            text "Coffee Inventory" role="heading" aria-level=1 font-size="1.5rem" font-weight=700 color="ink.strong" margin-bottom="4px"
+            text "Enter your team code to see store inventory." font-size="0.9375rem" color="ink.muted" margin-bottom="16px"
+            row
+              input type="password" value=draftCode input=editCode submit=signIn placeholder="Team code"
+                aria-label="Team code" autocapitalize="none" testId="code" flex=1 min-width=0 appearance="none" min-height="44px" box-sizing="border-box"
+                font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
+                ::placeholder
+                  color="ink.muted"
+              button press=signIn testId="sign-in" appearance="none" min-height="44px" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
+                border="none" border-radius="6px" background-color="brand"
+                text "Sign in" font-size="0.875rem" font-weight=600 color="ink.on-brand"
+            if signInError != ""
+              text signInError font-size="0.875rem" color="ink.delete" margin-top="12px" testId="sign-in-error"
       // The store picker: a dropdown under the store button on the web, a sheet on phones.
       StorePanel(web=host.web, still=media.prefersReducedMotion)
         if not host.web
