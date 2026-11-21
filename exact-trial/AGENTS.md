@@ -32,8 +32,9 @@ whether notes are sent and whether to keep a diary; under `never`, skip all of t
 
 ## This trial
 
-A trial of the coffee inventory list on Exact, separate from the Expo app in the repo root
-(which excludes this folder from its typecheck and lint). Exact is not on npm: clone
+The coffee inventory app. The repo root deploys it to Expo Hosting (see the root README); the API
+handler is `../src/server/api.ts`, shared by `server.ts` and the hosted `/api`. The root's
+typecheck and lint exclude this folder; its build and tests run in the `checks` workflow. Exact is not on npm: clone
 https://github.com/expo/exact, run `bun scripts/exact.mjs setup` there once, and `exact.mjs`
 finds it beside this repository or through `EXACT=<checkout>`.
 
