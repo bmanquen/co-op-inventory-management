@@ -1,0 +1,101 @@
+// `test` and `verify` start server.ts on an empty scratch database for each test (never Turso),
+// where the team code is `test-code`.
+test "a wrong team code is refused; the right one signs in"
+  type "code" "nope"
+  tap "sign-in"
+  clock data
+  expect text "sign-in-error" == "Wrong team code."
+  type "code" "test-code"
+  tap "sign-in"
+  clock data
+  clock settle
+  expect state code == "test-code"
+  expect tree has "no-stores"
+
+test "a saved code the server no longer accepts asks again"
+  stored code "old-code"
+  clock data
+  expect text "sign-in-error" == "Wrong team code."
+
+test "count stock, see what needs restocking, type a count and undo it"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/stores" {"name": "Airport"} as test-code
+  request POST "/products" {"name": "House Blend"} as test-code
+  request POST "/products" {"name": "Decaf"} as test-code
+  clock +10000
+  clock data
+  clock settle
+  expect state current == "2"
+  expect text "store-name" == "Airport"
+  expect text "sync-label" == "Saved"
+  expect disabled "minus-1"
+  tap "plus-1"
+  tap "plus-1"
+  expect text "count-1" == "2"
+  clock data
+  expect text "count-1" == "2"
+  expect text "filter-restock" == "Needs restock 2"
+  type "count-1" "12"
+  type "count-1" key "Enter"
+  clock data
+  expect tree missing "undo-toast"
+  type "count-1" key "Tab"
+  clock data
+  expect text "count-1" == "12"
+  expect tree has "undo-toast"
+  tap "filter-restock"
+  expect tree missing "line-1"
+  expect tree has "line-2"
+  tap "undo"
+  clock data
+  expect text "count-2" == "0"
+  tap "filter-all"
+  expect text "count-1" == "2"
+  clock +4000
+  expect tree missing "undo-toast"
+
+test "the store sheet searches and remembers the pick"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/stores" {"name": "Airport"} as test-code
+  request POST "/products" {"name": "House Blend"} as test-code
+  clock +10000
+  clock data
+  clock settle
+  tap "store"
+  clock settle
+  type "store-search" "down"
+  expect tree missing "pick-2"
+  tap "pick-1"
+  clock data
+  clock settle
+  expect text "store-name" == "Downtown"
+  expect state picked == "1"
+
+test "add stores and products, delete a product"
+  stored code "test-code"
+  clock data
+  tap "tab-stores"
+  type "new-stores" "Downtown"
+  tap "add-stores"
+  clock data
+  expect state newStore == ""
+  expect tree has "stores-1"
+  tap "tab-products"
+  type "new-products" "House Blend"
+  tap "add-products"
+  clock data
+  type "new-products" "Decaf"
+  type "new-products" key "Enter"
+  clock data
+  expect tree has "products-2"
+  tap "delete-products-1"
+  clock settle
+  tap "remove-confirm"
+  clock data
+  expect tree missing "products-1"
+  tap "tab-stock"
+  clock data
+  expect tree missing "line-1"
+  expect tree has "line-2"
