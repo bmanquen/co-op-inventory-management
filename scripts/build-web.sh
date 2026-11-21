@@ -22,6 +22,3 @@ cd "$root/exact-trial"
 bun install --frozen-lockfile
 bun exact.mjs web-build --out dist
 rm -rf "$root/public" && cp -R dist "$root/public"
-# Expo Hosting serves /products from products.html; Exact's client draws the tab from the URL.
-cp dist/shell.html "$root/public/products.html"
-cp dist/shell.html "$root/public/stores.html"
