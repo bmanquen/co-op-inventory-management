@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   rowOut: { backgroundColor: '#fdf3f1' },
   badge: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
   badgeOut: { color: '#b4382b', backgroundColor: '#fbe9e6' },
-  badgeLow: { color: '#9a6400', backgroundColor: '#fdf1d8' },
+  badgeLow: { color: '#8a5800', backgroundColor: '#fdf1d8' },
   stepper: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: 2, borderRadius: 12, backgroundColor: '#f8f2ec' },
   step: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   stepText: { fontSize: 22, color: BROWN },
@@ -260,5 +260,5 @@ const styles = StyleSheet.create({
   check: { width: 16, color: BROWN, fontWeight: '700' },
   optionText: { fontSize: 16 },
   optionActive: { color: BROWN, fontWeight: '600' },
-  noMatch: { padding: 12, color: '#888' },
+  noMatch: { padding: 12, color: '#6b625b' },
 });
