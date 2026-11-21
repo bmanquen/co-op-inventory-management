@@ -31,6 +31,10 @@ shape Stock
   store: string
   lines: Line[]
 
+// Which host draws the app: the store picker is a dropdown on the web and a sheet on phones.
+shape Host
+  web: bool
+
 shape Reply
   ok: bool
   error: string
@@ -61,6 +65,7 @@ component App
   state undoName = ""
   state undoBefore = 0
   state undoCount = 0
+  resource host = whichHost() as shape Host else empty()
   resource stores = loadStores(code) as shape Names else empty()
   resource products = loadProducts(code) as shape Names else empty()
   // The picked store while it still exists, else the first one.
@@ -110,19 +115,26 @@ component App
       code = draftCode.trim()
       draftCode = ""
 
+  // On the web the store button opens the dropdown itself (popovertarget); elsewhere, the sheet.
   action openStores
     storeQuery = ""
-    showModal("store-sheet")
+    if not host.web
+      showModal("store-sheet")
+  action closeStores
+    if host.web
+      hidePopover("store-menu")
+    else
+      close("store-sheet")
   action editStoreQuery(v: string)
     storeQuery = v
   action pickStore(id: string)
     picked = id
-    close("store-sheet")
+    closeStores()
   // Return picks the first match.
   action pickFirstStore
     if storeMatches.length > 0
       picked = match first(storeMatches) { case some(s) => s.id, case none => picked }
-      close("store-sheet")
+      closeStores()
   action showRestock(on: bool)
     needsOnly = on
 
@@ -214,7 +226,7 @@ component App
                     else
                       // exact-accept lower-list-beside-fixed
                       column padding="12px 16px 16px" gap="10px" background-color="surface.header" border-bottom="1px solid" border-bottom-color="line"
-                        button press=openStores aria-label=`Store: ${currentName}. Change store` testId="store" appearance="none" -exact-hover-effect="highlight"
+                        button press=openStores popovertarget=(host.web ? "store-menu" : "") aria-label=`Store: ${currentName}. Change store` testId="store" appearance="none" -exact-hover-effect="highlight"
                           display="flex" align-items="center" gap="10px" padding="10px 12px" text-align="left" width="100%" box-sizing="border-box"
                           background-color="surface" border="1px solid" border-color="line" border-radius="12px"
                           column flex=1 min-width=0
@@ -284,11 +296,8 @@ component App
                           button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
                             appearance="none" -exact-hover-effect="highlight" margin-left="auto" border="none" background-color="transparent" padding=0
                             text "Delete" font-size="0.875rem" color="ink.delete"
-      // The store picker: a centred dialog over a scrim; Escape closes it.
-      dialog id="store-sheet" aria-label="Choose a store" width="min(480px, calc(100% - 32px))" max-height="80%"
-        box-sizing="border-box" padding="20px" border="none" border-radius="12px" background-color="surface"
-        ::backdrop
-          background-color="scrim"
+      // The store picker: a dropdown under the store button on the web, a sheet on phones.
+      StorePanel(web=host.web)
         text "Choose a store" font-size="1.0625rem" font-weight=700 color="ink" margin-bottom="12px"
         input value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search stores"
           aria-label="Search stores" appearance="none" testId="store-search" width="100%" box-sizing="border-box"
@@ -349,3 +358,20 @@ component Chip
     button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" padding="7px 12px" border="none" border-radius="999px"
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")
+
+// The store picker's frame. Web: a dropdown anchored under the store button (popovertarget), closed by
+// Escape or a click elsewhere. Elsewhere: an unpainted dialog, which iOS presents as a native sheet.
+component StorePanel
+  props
+    web: bool
+  slot
+  view
+    if web
+      column id="store-menu" popover="auto" aria-label="Choose a store" position-area="bottom span-right"
+        position-try-fallbacks="flip-block" width="min(28rem, calc(100vw - 32px))" max-height="60vh" margin="6px 0px"
+        box-sizing="border-box" padding="12px" border="1px solid" border-color="line" border-radius="12px"
+        background-color="surface" box-shadow="0px 8px 24px rgb(31 26 22 / 0.16)"
+        children
+    else
+      dialog id="store-sheet" aria-label="Choose a store" width="100%" box-sizing="border-box" padding="8px 16px 16px"
+        children

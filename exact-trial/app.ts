@@ -51,6 +51,7 @@ async function names(code: string, list: 'products' | 'stores'): Promise<Result<
 const isList = (list: string): list is 'products' | 'stores' => list === 'products' || list === 'stores';
 
 const sources: Sources = {
+  whichHost: async () => ({ web: exactHost() === 'web' }),
   checkCode: async ([code]) => {
     const reply = await write(code, '/stores', { method: 'GET' });
     return reply.ok || reply.error !== 'Wrong team code.' ? reply : { ok: false, error: 'Wrong team code.' };
