@@ -8,6 +8,12 @@ jobs:
     name: Deploy preview (test database)
     type: deploy
     environment: preview
+    params:
+      # A fixed address the Exact page can be built against; each PR's deploy takes it over.
+      alias: preview
+    hooks:
+      after_install_node_modules:
+        - run: API_BASE_URL=https://bmanquen-inventory-management--preview.expo.app/api scripts/build-web.sh
 
   comment:
     name: Post preview link

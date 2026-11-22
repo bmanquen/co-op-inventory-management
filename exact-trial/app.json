@@ -9,6 +9,7 @@
     "id": "com.example.exact-trial-bcb743",
     "name": "Coffee Inventory"
   },
+  "env": ["API_BASE_URL"],
   "host": {
     "web": {}
   },

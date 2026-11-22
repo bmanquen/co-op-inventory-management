@@ -11,8 +11,8 @@ jobs:
     environment: production
     params:
       prod: true
-
-  phone:
-    name: Publish phone update (open in Expo Go)
-    type: update
-    environment: production
+    hooks:
+      # The Exact app's page goes into public/, which the deploy's `expo export` ships beside /api.
+      # If this step fails, the deploy stops and the current production deploy keeps serving.
+      after_install_node_modules:
+        - run: API_BASE_URL=https://bmanquen-inventory-management.expo.app/api scripts/build-web.sh
