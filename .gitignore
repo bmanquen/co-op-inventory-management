@@ -46,3 +46,4 @@ data.db
 
 # the Exact app's web build, from scripts/build-web.sh
 /public/
+/.env.local

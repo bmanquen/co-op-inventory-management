@@ -1,5 +1,5 @@
 <!-- exact:begin (exact new writes this block; bun exact.mjs update rewrites it) -->
-# exact-trial: an Exact app
+# inventory-management: an Exact app
 
 Run `bun exact.mjs --help` first to create `.exact/checkout`; set `EXACT=<checkout>` if needed.
 
@@ -41,7 +41,7 @@ plus a small Expo project that only hosts it:
 - `src/app/index+api.ts`, `src/app/[page]+api.ts`: answer `/`, `/products` and `/stores` with Exact's
   `shell.html`. Add a new route in `routes nav` to `PAGES` in `src/server/page.ts` too.
 - `src/app/api/inventory+api.ts`: the old React Native app's API, kept for clients still on it.
-- `app.config.js`: Expo's config (hosting and EAS). `app.json` is Exact's manifest, not Expo's.
+- `app.config.json`: Expo's config (hosting and EAS). `app.json` is Exact's manifest, not Expo's.
 - `scripts/build-web.sh`: builds the app into `public/`, which `expo export` ships beside `/api`.
 
 Exact is not on npm: clone https://github.com/expo/exact, run `bun scripts/exact.mjs setup` there once,
