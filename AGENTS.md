@@ -37,7 +37,7 @@ The repo root is the Exact app (`app.contract`, `app.ts`, `app.forma`, `app.test
 plus a small Expo project that only hosts it:
 
 - `src/server/api.ts`: the REST API handler, shared by `server.ts` (local dev and Exact's tests) and
-  Expo Hosting's `/api/*` (`src/app/api/[...path]+api.ts`).
+  Expo Hosting's `/api/*` (`src/app/api/[...path]+api.ts`). `src/server/db.ts` holds the tables both create.
 - `src/app/index+api.ts`, `src/app/[page]+api.ts`: answer `/`, `/products` and `/stores` with Exact's
   `shell.html`. Add a new route in `routes nav` to `PAGES` in `src/server/page.ts` too.
 - `src/app/api/inventory+api.ts`: the old React Native app's API, kept for clients still on it.
@@ -53,8 +53,14 @@ and `exact.mjs` finds it beside this repository or through `EXACT=<checkout>`. R
 - `bun exact.mjs web`: the app on 127.0.0.1:8765.
 - `bun exact.mjs test web` / `verify`: the tests, on a scratch database where the code is always `test-code`
   (stop `server.ts` first).
+- `bun test tools/`: the API on its own, on an in-memory database (`tools/` never makes Exact's build stale).
 - `npx tsc --noEmit` and `npx expo lint`: the API's typecheck and lint. Exact type-checks `app.ts` on
   every build. Run all of these before declaring a task done.
+
+Where this app differs from Exact's templates on purpose: production's API is Expo Router routes on
+Expo Hosting, on Turso (`server.ts` serves the same handler only for local dev and tests); the team
+code is `state code persist`, not `secret.keep`, so nobody is signed out; and the app paints its own
+controls and type sizes, a design decision rather than Exact's defaults.
 
 Don't change `app.id` in `app.json`: Exact keeps the saved team code under it, so a new id signs
 everyone out.

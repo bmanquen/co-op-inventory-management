@@ -10,7 +10,8 @@ test "a wrong team code is refused; the right one signs in"
   clock data
   clock settle
   expect state code == "test-code"
-  expect tree has "no-stores"
+  tap "no-stores"
+  expect state nav.tab == "stores"
 
 test "a saved code the server no longer accepts asks again"
   stored code "old-code"

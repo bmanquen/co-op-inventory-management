@@ -253,7 +253,10 @@ component App
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     if t.name == "stock"
                       if stores.items.length == 0 and not pending(stores)
-                        text "Add a store on the Stores tab first." color="ink.empty" text-align="center" padding="24px" testId="no-stores"
+                        // An empty screen says what to do and offers it, in the list's place (Exact's EmptyState).
+                        EmptyState(symbol="symbol:icon.storefront", title="No Stores Yet", message="Add a store to start counting its stock.")
+                          button press=tab("stores") testId="no-stores"
+                            text "Add a Store"
                       else
                         // exact-accept lower-list-beside-fixed
                         column padding="4px 16px 16px" gap="12px" background-color="surface" border-bottom="1px solid" border-bottom-color="line"
@@ -271,13 +274,18 @@ component App
                         if stock.store != current
                           column padding="24px" align-items="center"
                             progress aria-label="Loading" testId="loading"
+                        else if stock.lines.length == 0
+                          EmptyState(symbol="symbol:package", title="No Products Yet", message="Add a product to count it at every store.")
+                            button press=tab("products") testId="no-products"
+                              text "Add a Product"
+                        else if shown.length == 0
+                          EmptyState(symbol="symbol:checkmark", title="All Stocked", message="Nothing at this store needs restocking.")
+                            button press=showRestock(false) testId="all-stocked"
+                              text "Show All"
                         else
                           scroll flex=1 min-height=0
                             // Room for the undo message so it never covers the last row.
                             column padding-bottom="80px"
-                              if shown.length == 0
-                                text (stock.lines.length == 0 ? "Add a product on the Products tab." : "Everything at this store is stocked.")
-                                  color="ink.empty" text-align="center" padding="24px" testId="stock-empty"
                               for l in shown key=l.id
                                 row testId=`line-${l.id}` align-items="center" flex-wrap="wrap" gap="12px" padding="12px 16px"
                                   border-bottom="1px solid" border-bottom-color="line" background-color=(l.count == 0 ? "out.row" : "surface")
@@ -383,7 +391,7 @@ component App
           position-try-fallbacks="flip-block" width="min(calc(55rem - 32px), calc(100vw - 32px))" max-height="60vh" margin="6px 0px"
           box-sizing="border-box" padding="8px" border="1px solid" border-color="line" border-radius="12px"
           transform-origin="top left" animation=(media.prefersReducedMotion ? "none" : "menuIn 160ms cubic-bezier(0.23, 1, 0.32, 1)")
-          background-color="surface" box-shadow="0px 8px 24px rgb(31 26 22 / 0.16)"
+          background-color="surface" box-shadow="0px 8px 24px var(--shadow)"
           input value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search stores"
             aria-label="Search stores" appearance="none" testId="store-search" width="100%" box-sizing="border-box"
             font-size="1rem" color="ink" padding="10px 12px" border="none" border-radius="10px" background-color="surface.tint" margin-bottom="8px"

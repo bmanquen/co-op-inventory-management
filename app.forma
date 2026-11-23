@@ -5,7 +5,6 @@ forma coffee
 theme
   brand = #6f4e37  scheme=fixed
   ink = #000000  scheme=fixed
-  ink.nav = #1c1c1e  scheme=fixed
   ink.nav-dim = #6b625b  scheme=fixed
   ink.on-brand = #ffffff  scheme=fixed
   ink.strong = #1f1a16  scheme=fixed
@@ -18,10 +17,8 @@ theme
   surface.tint = #f8f2ec  scheme=fixed
   surface.chip = #f1e7df  scheme=fixed
   line = #ebe3dc  scheme=fixed
-  line.nav = #d8d8d8  scheme=fixed
   line.list = #eeeeee  scheme=fixed
   line.field = #dddddd  scheme=fixed
-  line.grabber = #d9d1ca  scheme=fixed
   out.ink = #b4382b  scheme=fixed
   out.fill = #fbe9e6  scheme=fixed
   out.row = #fdf3f1  scheme=fixed
@@ -32,7 +29,8 @@ theme
   toast.fill = #2a231e  scheme=fixed
   toast.ink = #ffffff  scheme=fixed
   toast.action = #f3c79f  scheme=fixed
-  scrim = rgb(31 26 22 / 0.32)  scheme=fixed
+  // The store dropdown's shadow.
+  shadow = rgb(31 26 22 / 0.16)  scheme=fixed
 
 // The Stores tab: SF Symbols' storefront on Apple, Material Symbols' (Apache 2.0) elsewhere.
 icons
