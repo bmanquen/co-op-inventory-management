@@ -1,21 +1,38 @@
 {
+  "theme_color": "#fbf8f5",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "assets/icon/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icon/icon-monochrome-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "monochrome" }
+  ],
+  "host": {
+    "web": {},
+    "android": {},
+    "ios": {
+      "minimumOS": "17.0",
+      "deviceFamily": [
+        "iphone",
+        "ipad"
+      ]
+    }
+  },
+  "deploy": {
+    "store": {
+      "web": "0",
+      "ios": "0"
+    }
+  },
   "$schema": ".exact/checkout/scripts/app.schema.json",
-  "name": "Coffee Inventory",
-  "short_name": "Coffee Inventory",
+  "name": "Co-op Inventory",
+  "short_name": "Co-op Inventory",
   "id": "com.example.exact-trial-bcb743",
   "start_url": "/",
   "display": "standalone",
   "app": {
     "id": "com.example.exact-trial-bcb743",
-    "name": "Coffee Inventory"
+    "name": "Co-op Inventory"
   },
-  "env": ["API_BASE_URL"],
-  "host": {
-    "web": {}
-  },
-  "deploy": {
-    "store": {
-      "web": "0"
-    }
-  }
+  "env": [
+    "API_BASE_URL"
+  ]
 }
