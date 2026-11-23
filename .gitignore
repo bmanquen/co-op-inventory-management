@@ -6,20 +6,21 @@ node_modules/
 # Expo
 .expo/
 dist/
-web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
+# Exact (the checkout link, generated types, native build output and its other dist folders)
+/.exact/
+/app.contract.d.ts
+/target/
+/dist.*
+/dist-windows/
+
+# signing files
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
-.metro-health-check*
 
 # debug
 npm-debug.*
@@ -36,15 +37,12 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
-
-# shared inventory database
+# local databases: `turso dev --db-file data/dev.db`, or server.ts's data.db when TURSO_DATABASE_URL is unset
 data/
+data.db
 
 # orb-local Amp files (portal manifests)
 .amp/
 
-# built by scripts/build-web.sh (the Exact app)
+# the Exact app's web build, from scripts/build-web.sh
 /public/

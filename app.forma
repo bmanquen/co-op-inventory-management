@@ -1,7 +1,7 @@
 forma coffee
 
-// The React Native app's colours (src/app/index.tsx, src/ui.tsx, React Navigation's light theme).
-// That app is light-only, so every token is fixed.
+// The colours of the React Native app this replaced (and React Navigation's light theme).
+// That app was light-only, so every token is fixed.
 theme
   brand = #6f4e37  scheme=fixed
   ink = #000000  scheme=fixed

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { db, ready } from '@/server/db';
+import { db, ready } from '../../server/db';
 
 const MAX_COUNT = 1_000_000;
 const sha = (s: string) => createHash('sha256').update(s).digest();

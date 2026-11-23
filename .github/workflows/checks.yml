@@ -23,4 +23,4 @@ jobs:
       - name: Build the Exact app
         run: API_BASE_URL=http://127.0.0.1:8081/api scripts/build-web.sh
       - name: Exact tests
-        run: cd exact-trial && bun exact.mjs test web
+        run: bun exact.mjs test web

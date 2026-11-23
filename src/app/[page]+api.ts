@@ -1,1 +1,1 @@
-export { GET } from '@/server/page';
+export { GET } from '../server/page';

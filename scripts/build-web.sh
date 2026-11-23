@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Exact app (exact-trial/) into public/, which `expo export` ships beside the /api routes.
+# Builds the Exact app into public/, which `expo export` ships beside the /api routes.
 # Usage: API_BASE_URL=https://<site>/api scripts/build-web.sh
 set -euo pipefail
 : "${API_BASE_URL:?Set API_BASE_URL to the deployed API, such as https://bmanquen-inventory-management.expo.app/api}"
@@ -18,7 +18,7 @@ command -v rustup >/dev/null || curl -sSf https://sh.rustup.rs | sh -s -- -y --d
 export PATH="$HOME/.cargo/bin:$PATH"
 (cd "$EXACT" && bun scripts/exact.mjs setup --platform web)
 
-cd "$root/exact-trial"
-bun install --frozen-lockfile
-bun exact.mjs web-build --out dist
-rm -rf "$root/public" && cp -R dist "$root/public"
+# Exact builds only under dist/ or target/ inside the app, and `expo export` owns dist/.
+cd "$root"
+bun exact.mjs web-build --out target/web
+rm -rf public && cp -R target/web public
