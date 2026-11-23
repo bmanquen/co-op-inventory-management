@@ -1,11 +1,11 @@
 /// <reference types="node" />
 // The Exact app's REST API. Expo Hosting serves it at /api/* (src/app/api/[...path]+api.ts);
-// exact-trial/server.ts serves it on 127.0.0.1:8787 for local dev and Exact's tests.
+// server.ts serves it on 127.0.0.1:8787 for local dev and Exact's tests.
 import type { Client } from '@libsql/client/web';
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 const MAX_COUNT = 1_000_000;
-// Products at a store with this many or fewer count as low; exact-trial/app.contract's `isLow` matches.
+// Products at a store with this many or fewer count as low; app.contract's `isLow` matches.
 const LOW = 3;
 const isId = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) > 0;
 const sha = (s: string) => createHash('sha256').update(s).digest();

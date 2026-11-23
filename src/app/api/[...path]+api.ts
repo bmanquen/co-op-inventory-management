@@ -1,5 +1,5 @@
-import { handle } from '@/server/api';
-import { db, ready } from '@/server/db';
+import { handle } from '../../server/api';
+import { db, ready } from '../../server/db';
 
 // The Exact app's API (src/server/api.ts) at /api/*, on this environment's Turso database.
 async function serve(request: Request) {

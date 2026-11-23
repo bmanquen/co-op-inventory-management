@@ -3,7 +3,7 @@
 // It talks to Turso (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN) and checks TEAM_CODE on every request.
 // `test` and `verify` set DB to a scratch file instead, so tests never touch Turso.
 import { createClient } from '@libsql/client';
-import { handle } from '../src/server/api.ts';
+import { handle } from './src/server/api.ts';
 import { API } from './app.ts';
 
 const db = process.env.DB

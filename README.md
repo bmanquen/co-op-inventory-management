@@ -20,12 +20,14 @@ npx expo export --platform web && npx eas-cli@latest deploy --prod --environment
 
 ## The app (Expo Exact)
 
-The app's screens are an [Expo Exact](https://github.com/expo/exact) app in `exact-trial/` (Contract view, `app.ts` data module, tests). `scripts/build-web.sh` builds it into `public/`, and `expo export` ships that page beside the API at `/api/*` (`src/app/api/[...path]+api.ts`, handler in `src/server/api.ts`). Both EAS workflows run the script before deploying; `API_BASE_URL` picks which site's API the page calls. Exact is not on npm, so the script clones expo/exact at a pinned commit and needs Rust (it installs rustup) and Bun.
+The repo root is an [Expo Exact](https://github.com/expo/exact) app: `app.contract` (the screens), `app.ts` (the data module), `app.forma` (colours and icons), `app.test.contract` (tests) and `app.json` (Exact's manifest). Beside it is a small Expo project that only hosts it: `app.config.json` is Expo's config, and Expo Router serves the API at `/api/*` (`src/app/api/[...path]+api.ts`, handler in `src/server/api.ts`) plus the app's page at `/`, `/products` and `/stores`.
+
+`scripts/build-web.sh` builds the app into `public/`, and `expo export` ships that page beside the API. Both EAS workflows run the script before deploying; `API_BASE_URL` picks which site's API the page calls. Exact is not on npm, so the script clones expo/exact at a pinned commit and needs Rust (it installs rustup) and Bun.
 
 `/api/inventory` is the old React Native app's API, kept so phones and open tabs still on that version keep working; remove it once nobody uses it.
 
-There is no Expo Go: Expo Go can't run Exact apps. iPhone builds need a Mac (`bun exact.mjs share` in `exact-trial/`).
+There is no Expo Go: Expo Go can't run Exact apps. iPhone builds need a Mac (`bun exact.mjs share`).
 
 ## Local development
 
-See `exact-trial/AGENTS.md`: `bun server.ts` (same API handler, on Turso or a scratch database) and `bun exact.mjs web`. `bun exact.mjs test web` runs the tests.
+Clone https://github.com/expo/exact beside this repo and run `bun scripts/exact.mjs setup` there once, then `npm install` here. See `AGENTS.md` for the commands: `bun server.ts` (the same API handler, on Turso or a scratch database), `bun exact.mjs web` (the app) and `bun exact.mjs test web` (the tests).

@@ -1,47 +1,38 @@
 {
-  "expo": {
-    "name": "Inventory Management",
-    "slug": "inventory-management",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+  "theme_color": "#fbf8f5",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "assets/icon/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icon/icon-monochrome-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "monochrome" }
+  ],
+  "host": {
+    "web": {},
+    "android": {},
     "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "output": "server"
-    },
-    "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://bmanquen-inventory-management.expo.app/"
-        }
+      "minimumOS": "17.0",
+      "deviceFamily": [
+        "iphone",
+        "ipad"
       ]
-    ],
-    "scheme": "inventorymanagement",
-    "extra": {
-      "router": {
-        "asyncRoutes": {
-          "web": true
-        },
-        "origin": "https://bmanquen-inventory-management.expo.app/"
-      },
-      "eas": {
-        "projectId": "4d4c6579-863f-444b-920d-c7e633e76283"
-      }
-    },
-    "owner": "bmanquen"
-  }
+    }
+  },
+  "deploy": {
+    "store": {
+      "web": "0",
+      "ios": "0"
+    }
+  },
+  "$schema": ".exact/checkout/scripts/app.schema.json",
+  "name": "Co-op Inventory",
+  "short_name": "Co-op Inventory",
+  "id": "com.example.exact-trial-bcb743",
+  "start_url": "/",
+  "display": "standalone",
+  "app": {
+    "id": "com.example.exact-trial-bcb743",
+    "name": "Co-op Inventory"
+  },
+  "env": [
+    "API_BASE_URL"
+  ]
 }

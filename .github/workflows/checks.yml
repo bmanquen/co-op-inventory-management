@@ -22,5 +22,8 @@ jobs:
       # Builds the Exact app (a Contract or app.ts error fails here), then runs its tests on a scratch database.
       - name: Build the Exact app
         run: API_BASE_URL=http://127.0.0.1:8081/api scripts/build-web.sh
+      # Reads app.config.json and builds the /api routes beside public/, so a broken Expo config fails here, not at deploy.
+      - name: Expo export
+        run: npx expo export --platform web
       - name: Exact tests
-        run: cd exact-trial && bun exact.mjs test web
+        run: bun exact.mjs test web

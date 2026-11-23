@@ -1,16 +1,6 @@
 {
-  "extends": "expo/tsconfig.base",
-  "compilerOptions": {
-    "strict": true,
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    }
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": ["node_modules", "exact-trial"]
+  // Exact's build reads this file too: it takes only `paths` and `baseUrl`, and refuses an `extends` of a package.
+  "compilerOptions": { "strict": true, "target": "ESNext", "module": "ESNext", "moduleResolution": "bundler", "allowImportingTsExtensions": true, "noEmit": true },
+  // `tsc` checks the Expo API routes; every Exact build type-checks app.ts with Exact's own settings.
+  "include": ["src"]
 }
