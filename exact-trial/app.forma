@@ -33,3 +33,7 @@ theme
   toast.ink = #ffffff  scheme=fixed
   toast.action = #f3c79f  scheme=fixed
   scrim = rgb(31 26 22 / 0.32)  scheme=fixed
+
+// The Stores tab: SF Symbols' storefront on Apple, Material Symbols' (Apache 2.0) elsewhere.
+icons
+  icon.storefront = icon(sf "storefront", material "storefront", svg "storefront.svg")

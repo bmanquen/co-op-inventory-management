@@ -50,6 +50,10 @@ shape Stock
 shape Host
   web: bool
 
+// Android's top app bar has no item for a readout (role="status"), so there the header stays in the page.
+shape Page
+  platform: string
+
 shape Reply
   ok: bool
   error: string
@@ -57,8 +61,6 @@ shape Reply
 fn replyError(r: option<Reply>): string = match r { case some(x) => x.error, case none => "" }
 // At or below this count a product needs restocking.
 fn isLow(n: number): bool = n <= 3
-// A store's row subtitle in the phone's picker: "1 out · 1 low", "4 out", "2 low".
-fn storeSummary(s: Item): string = s.out > 0 and s.low > 0 ? `${s.out} out · ${s.low} low` : s.out > 0 ? `${s.out} out` : `${s.low} low`
 
 component App
   // Kept across launches, as the React Native app keeps them in AsyncStorage.
@@ -84,6 +86,8 @@ component App
   state undoCount = 0
   resource media = exactViewport() as shape Media
   resource host = whichHost() as shape Host else empty()
+  resource page = exactPage() as shape Page
+  derive android = page.platform == "android"
   resource stores = loadStores(code) as shape Names else empty()
   resource products = loadProducts(code) as shape Names else empty()
   // The picked store while it still exists, else the first one.
@@ -216,10 +220,11 @@ component App
                 // button, a search field in the bar, and the stores in an inset list, the current one checked.
                 column navigationKey=`${e.id}` navigationPresentation="modal" navigationDetent="medium large"
                   navigationScroll="store-list" position="absolute" inset=0 display="flex" flex-direction="column" accent-color="brand"
-                  header display="flex" align-items="center" justify-content="space-between" padding="8px 16px"
+                  // Where the sheet paints its header (Android), the search wraps under the title rather than squeezing it.
+                  header display="flex" flex-wrap="wrap" align-items="center" column-gap="8px" padding="8px 16px"
                     button id="close" press=closeStores aria-label="Close" testId="store-close"
                       image "symbol:close"
-                    text "Choose a Store" role="heading" aria-level=2
+                    text "Choose a Store" role="heading" aria-level=2 flex=1
                     input type="search" value=storeQuery input=editStoreQuery submit=pickFirstStore placeholder="Search"
                       aria-label="Search stores" testId="store-search" width="100%"
                   list id="store-list" appearance="auto" listStyle="inset-grouped" flex=1 min-height=0
@@ -228,17 +233,22 @@ component App
                         button press=pickStore(s.id) role="radio" aria-checked=(s.id == current) testId=`pick-${s.id}`
                           column flex=1 min-width=0
                             text s.name
-                            if s.out > 0 or s.low > 0
-                              text storeSummary(s) font="-exact-footnote" color=(s.out > 0 ? "out.ink" : "low.ink")
+                            row gap="4px"
+                              if s.out > 0
+                                text `${s.out} out` font="-exact-footnote" color="out.ink"
+                              if s.out > 0 and s.low > 0
+                                text "·" font="-exact-footnote" color="ink.muted"
+                              if s.low > 0
+                                text `${s.low} low` font="-exact-footnote" color="low.ink"
                           if s.id == current
                             image "symbol:checkmark" color="brand"
                       if storeMatches.length == 0
                         row
                           text `No stores match “${storeQuery}”` color="ink.empty"
               else
-                column navigationKey=`${e.id}` position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
-                  // The route's first child, so on a phone it is the platform's navigation bar with a large title.
-                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, web=host.web)
+                column navigationKey=`${e.id}` navigationBar=(android ? "none" : "auto") position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
+                  // The route's first child, so on iOS it is the platform's navigation bar with a large title.
+                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, web=(host.web or android))
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     if t.name == "stock"
@@ -254,7 +264,7 @@ component App
                               text "Counting at" font-size="0.75rem" color="ink.muted"
                               text currentName font-size="1.0625rem" font-weight=700 color="ink.strong"
                                 line-clamp=2 testId="store-name"
-                            text "⌄" font-size="1.125rem" color="brand"
+                            image "symbol:chooser" aria-hidden=true color="brand"
                           row gap="6px"
                             Chip(label=`All ${stock.lines.length}`, on=(not needsOnly), press=showRestock(false), id="filter-all")
                             Chip(label=`Needs restock ${restock.length}`, on=needsOnly, press=showRestock(true), id="filter-restock")
@@ -281,7 +291,7 @@ component App
                                     button press=adjust(l.id, -1) disabled=(l.count == 0) aria-label=`Remove one ${l.name}` testId=`minus-${l.id}`
                                       appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
                                       display="flex" align-items="center" justify-content="center" padding=0
-                                      text "−" font-size="1.375em" color=(l.count == 0 ? "ink.disabled" : "brand")
+                                      image "symbol:minus" color=(l.count == 0 ? "ink.disabled" : "brand")
                                     input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
                                       input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
                                       aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}`
@@ -291,7 +301,7 @@ component App
                                     button press=adjust(l.id, 1) aria-label=`Add one ${l.name}` testId=`plus-${l.id}`
                                       appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
                                       display="flex" align-items="center" justify-content="center" padding=0
-                                      text "+" font-size="1.375em" color="brand"
+                                      image "symbol:add" color="brand"
                         if undoShown
                           row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
                             padding="12px 14px" border-radius="14px" background-color="toast.fill"
@@ -302,7 +312,7 @@ component App
                       // Products and Stores are React Native's NameList: one add row, then a row per name.
                       row align-items="center" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
                         input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name)
-                          placeholder=(t.name == "products" ? "New product, e.g. Kenya AA 12oz" : "New store location")
+                          placeholder=(t.name == "products" ? "New product, e.g. Oat milk 1L" : "New store location")
                           aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
                           appearance="none" min-height="44px" box-sizing="border-box" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
                           ::placeholder
@@ -335,14 +345,14 @@ component App
         for t in nav.tabs key=t.name
           if host.web
             button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
-              appearance="none" -exact-hover-effect="highlight" class=Press display="flex" align-items="center" gap="6px" padding="8px 12px" border="none" border-radius="8px"
+              appearance="none" -exact-hover-effect="highlight" class=Press display="flex" flex=1 justify-content="center" align-items="center" gap="6px" padding="8px 12px" border="none" border-radius="8px"
               background-color=(nav.tab == t.name ? "surface.chip" : "transparent") color=(nav.tab == t.name ? "brand" : "ink.nav-dim")
-              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:location") aria-hidden=true
+              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:icon.storefront") aria-hidden=true
               text (t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores") font-size="0.9375rem" font-weight=600
           else
             // A symbol over a label: a tab bar item.
             button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
-              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:location")
+              image (t.name == "stock" ? "symbol:package" : t.name == "products" ? "symbol:list" : "symbol:icon.storefront")
               text (t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores")
       if not signedIn
         // A root overlay over the hidden tabs (after them, positioned): iOS draws the tabs' native
@@ -350,15 +360,17 @@ component App
         column position="absolute" inset=0 display="flex" background-color="surface"
           // A compact sign-in form, centred in the window.
           column flex=1 justify-content="center" width="100%" max-width="24rem" margin="0px auto" box-sizing="border-box" padding="24px"
-            text "Coffee Inventory" role="heading" aria-level=1 font-size="1.5rem" font-weight=700 color="ink.strong" margin-bottom="4px"
+            text "Co-op Inventory" role="heading" aria-level=1 font-size="1.5rem" font-weight=700 letter-spacing="-0.01em" color="ink.strong" margin-bottom="4px"
             text "Enter your team code to see store inventory." font-size="0.9375rem" color="ink.muted" margin-bottom="16px"
-            row
+            // A phone stacks the field over a full-width button, in easy reach of a thumb; the web keeps one row.
+            row flex-direction=(host.web ? "row" : "column") gap=(host.web ? "8px" : "12px")
               input type="password" value=draftCode input=editCode submit=signIn placeholder="Team code"
-                aria-label="Team code" autocapitalize="none" testId="code" flex=1 min-width=0 appearance="none" min-height="44px" box-sizing="border-box"
+                aria-label="Team code" autocapitalize="none" autocorrect="off" enterkeyhint="go" testId="code" flex=1 min-width=0 appearance="none" min-height="44px" box-sizing="border-box"
                 font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
                 ::placeholder
                   color="ink.muted"
-              button press=signIn testId="sign-in" appearance="none" min-height="44px" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
+              button press=signIn testId="sign-in" appearance="none" min-height=(host.web ? "44px" : "48px") -exact-hover-effect="highlight" class=Press padding="10px 16px"
+                display="flex" align-items="center" justify-content="center"
                 border="none" border-radius="6px" background-color="brand"
                 text "Sign in" font-size="0.875rem" font-weight=600 color="ink.on-brand"
             if signInError != ""
@@ -410,7 +422,7 @@ component Bar
     // Drawn as written on the web, centred to the content's width; on a phone, the platform's bar.
     header appearance=(web ? "none" : "auto") display="flex" align-items="center" box-sizing="border-box"
       padding="20px max(16px, calc((100% - 55rem) / 2 + 16px)) 12px" background-color="surface"
-      text title role="heading" aria-level=1 font-size="1.5rem" font-weight=700 color="ink.strong" min-width=0
+      text title role="heading" aria-level=1 font-size="1.5rem" font-weight=700 letter-spacing="-0.01em" color="ink.strong" min-width=0
       column flex=1
       row align-items="center" gap="6px" role="status" testId="sync"
         column width="6px" height="6px" border-radius="3px"
@@ -433,6 +445,6 @@ component Chip
     press: action
     id: string
   view
-    button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" class=Press padding="7px 12px" border="none" border-radius="999px"
+    button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" class=Press min-height="36px" box-sizing="border-box" display="flex" align-items="center" padding="7px 14px" border="none" border-radius="999px"
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")
