@@ -36,6 +36,14 @@ On a Mac with a released Xcode 27.1+ and Exact at the commit `scripts/build-web.
 
 Upload with `xcrun altool --upload-app -f target/CoopInventory.ipa -t ios --apiKey <key id> --apiIssuer <issuer id>`. Apple processes it in 5 to 30 minutes; then add it to a TestFlight group. A tester must accept TestFlight's email invite on their iPhone, or TestFlight says the app is "not available".
 
+## Versions
+
+The version people see is `version` in `app.json`; both store build scripts read it. Raise it in a PR when a new store release starts (1.0.1 for fixes, 1.1.0 for features): App Store Connect takes no more builds for a version once it is released. Until then, TestFlight builds stay on the same version with a rising build number. The build number is never committed: pass the next one to each build, above the last upload to that store (App Store Connect per version; Google Play for every upload ever).
+
+## Google Play (Android)
+
+Not distributed yet. With the Android SDK (platform 37.2 and an NDK), a JDK 17+ and `npm install` (`bun .exact/checkout/scripts/exact.mjs setup --check --platform android` names what's missing), `scripts/build-android.sh` builds a signed `target/CoopInventory.aab` against the production API. It needs the upload keystore (`EXACT_KEYSTORE`, `EXACT_KEYSTORE_PASSWORD`, `EXACT_KEY_ALIAS`, `EXACT_KEY_PASSWORD`), which is kept in the Amp project secrets of those names, with the keystore file base64-encoded as `EXACT_KEYSTORE_B64` (the script decodes it when `EXACT_KEYSTORE` is unset), and a version code above every one Play has taken (`EXACT_BUILD_NUMBER`). Publishing needs a Play Console app record for `dev.offbyonelabs.coopinventory`; upload the `.aab` there.
+
 ## Local development
 
 Clone https://github.com/expo/exact beside this repo and run `bun scripts/exact.mjs setup` there once, then `npm install` here. See `AGENTS.md` for the commands: `bun server.ts` (the same API handler, on Turso or a scratch database), `bun exact.mjs web` (the app), `bun exact.mjs test web` (the app's tests) and `bun test tools/` (the API's own tests).

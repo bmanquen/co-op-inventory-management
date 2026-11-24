@@ -9,12 +9,13 @@ set -euo pipefail
 : "${EXACT_PROFILE:?Set EXACT_PROFILE to the App Store provisioning profile for app.id}"
 : "${EXACT_BUILD_NUMBER:?Set EXACT_BUILD_NUMBER above the last uploaded build}"
 export API_BASE_URL=${API_BASE_URL:-https://bmanquen-inventory-management.expo.app/api}
-export EXACT_VERSION=${EXACT_VERSION:-1.0.0}
 # The app only uses HTTPS, so it answers Apple's export-compliance question with no.
 export EXACT_NON_EXEMPT_ENCRYPTION=false
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
+# The version people see is app.json's `version`; change it there when a new store release starts.
+export EXACT_VERSION=${EXACT_VERSION:-$(bun -p 'require("./app.json").version')}
 # Build from the Exact commit build-web.sh pins (the one the tests last passed on): every upload uses a build number.
 export EXACT=${EXACT:-$root/../exact}
 pin=$(sed -n 's/^EXACT_COMMIT=//p' scripts/build-web.sh)
