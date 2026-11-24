@@ -4,6 +4,7 @@
 // `test` and `verify` set DB to a scratch file instead, so tests never touch Turso.
 import { createClient } from '@libsql/client';
 import { handle } from './src/server/api.ts';
+import { SCHEMA } from './src/server/db.ts';
 import { API } from './app.ts';
 
 const db = process.env.DB
@@ -18,14 +19,7 @@ const db = process.env.DB
 const TEAM_CODE = process.env.DB ? 'test-code' : process.env.TEAM_CODE;
 if (!TEAM_CODE) throw new Error('Set TEAM_CODE before starting server.ts');
 
-await db.batch(
-  [
-    'CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS stores (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS stock (store_id INTEGER NOT NULL, product_id INTEGER NOT NULL, count INTEGER NOT NULL CHECK (count >= 0), PRIMARY KEY (store_id, product_id))',
-  ],
-  'write',
-);
+await db.batch(SCHEMA, 'write');
 
 const { hostname, port } = new URL(API);
 Bun.serve({ hostname, port: Number(port), fetch: (req) => handle(req, db, TEAM_CODE) });

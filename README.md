@@ -30,4 +30,4 @@ There is no Expo Go: Expo Go can't run Exact apps. iPhone builds need a Mac (`bu
 
 ## Local development
 
-Clone https://github.com/expo/exact beside this repo and run `bun scripts/exact.mjs setup` there once, then `npm install` here. See `AGENTS.md` for the commands: `bun server.ts` (the same API handler, on Turso or a scratch database), `bun exact.mjs web` (the app) and `bun exact.mjs test web` (the tests).
+Clone https://github.com/expo/exact beside this repo and run `bun scripts/exact.mjs setup` there once, then `npm install` here. See `AGENTS.md` for the commands: `bun server.ts` (the same API handler, on Turso or a scratch database), `bun exact.mjs web` (the app), `bun exact.mjs test web` (the app's tests) and `bun test tools/` (the API's own tests).
