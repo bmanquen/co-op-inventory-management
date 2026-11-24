@@ -302,7 +302,7 @@ component App
                                       image "symbol:minus" color=(l.count == 0 ? "ink.disabled" : "brand")
                                     input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
                                       input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
-                                      aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}`
+                                      aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}` min-height="44px"
                                       width=`${max(52, (countId == l.id ? countDraft : l.count.toString()).length * 12 + 16) / 18}em` box-sizing="border-box"
                                       text-align="center" font-size="1.125em" font-weight=700 font-variant-numeric="tabular-nums" color="ink"
                                       border="none" background-color="transparent" padding="8px 0px" border-radius="8px"
@@ -333,7 +333,7 @@ component App
                           for it in (t.name == "products" ? products.items : stores.items) key=it.id
                             row testId=`${t.name}-${it.id}` align-items="center" flex-wrap="wrap" column-gap="8px" padding="12px 16px" border-bottom="1px solid" border-bottom-color="line.list"
                               text it.name font-size="1rem" color="ink" flex="1 1 8rem" min-width=0
-                              button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`delete-${t.name}-${it.id}`
+                              button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`${t.name}-${it.id}-delete`
                                 appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
                                 text "Delete" font-size="0.875rem" color="ink.delete"
                       else
@@ -453,6 +453,6 @@ component Chip
     press: action
     id: string
   view
-    button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" class=Press min-height="36px" box-sizing="border-box" display="flex" align-items="center" padding="7px 14px" border="none" border-radius="999px"
+    button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" class=Press min-height="44px" box-sizing="border-box" display="flex" align-items="center" padding="7px 14px" border="none" border-radius="999px"
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")

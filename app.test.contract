@@ -37,8 +37,8 @@ test "count stock, see what needs restocking, type a count and undo it"
   clock data
   expect text "count-1" == "2"
   expect text "filter-restock" == "Needs restock 2"
+  // Typing alone saves nothing; leaving the field saves (iOS's Return leaves it too, the web's Enter doesn't).
   type "count-1" "12"
-  type "count-1" key "Enter"
   clock data
   expect tree missing "undo-toast"
   type "count-1" key "Tab"
@@ -67,6 +67,8 @@ test "the store sheet searches and remembers the pick"
   tap "store"
   clock settle
   type "store-search" "down"
+  // On iOS the keyboard raises the sheet; let it land before tapping a row.
+  clock settle
   expect tree missing "pick-2"
   tap "pick-1"
   clock data
@@ -91,7 +93,7 @@ test "add stores and products, delete a product"
   type "new-products" key "Enter"
   clock data
   expect tree has "products-2"
-  tap "delete-products-1"
+  tap "products-1-delete"
   clock settle
   tap "remove-confirm"
   clock data
