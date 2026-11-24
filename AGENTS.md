@@ -62,8 +62,9 @@ Expo Hosting, on Turso (`server.ts` serves the same handler only for local dev a
 code is `state code persist`, not `secret.keep`, so nobody is signed out; and the app paints its own
 controls and type sizes, a design decision rather than Exact's defaults.
 
-Don't change `app.id` in `app.json`: Exact keeps the saved team code under it, so a new id signs
-everyone out.
+Don't change `app.id` in `app.json`: it is the iOS bundle ID registered with Apple for TestFlight and
+the App Store (team Off By One LLC), and it can't change after an upload. (The web keeps the saved
+team code under the page's origin, not `app.id`.)
 
 ## Expo (hosting only)
 

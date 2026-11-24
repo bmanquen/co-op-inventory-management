@@ -25,11 +25,11 @@
   "$schema": ".exact/checkout/scripts/app.schema.json",
   "name": "Co-op Inventory",
   "short_name": "Co-op Inventory",
-  "id": "com.example.exact-trial-bcb743",
+  "id": "dev.offbyonelabs.coopinventory",
   "start_url": "/",
   "display": "standalone",
   "app": {
-    "id": "com.example.exact-trial-bcb743",
+    "id": "dev.offbyonelabs.coopinventory",
     "name": "Co-op Inventory"
   },
   "env": [

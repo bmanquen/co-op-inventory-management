@@ -28,6 +28,14 @@ The repo root is an [Expo Exact](https://github.com/expo/exact) app: `app.contra
 
 There is no Expo Go: Expo Go can't run Exact apps. iPhone builds need a Mac (`bun exact.mjs share`).
 
+## TestFlight (iPhone)
+
+The iPhone app is `dev.offbyonelabs.coopinventory` in App Store Connect (team Off By One LLC). Its app record was created by hand (appstoreconnect.apple.com → New App), since API keys can't create one; a new bundle ID needs that before its first upload.
+
+On a Mac with a released Xcode 27.1+ and Exact at the commit `scripts/build-web.sh` pins, `scripts/build-ios.sh` builds an App Store-signed `target/CoopInventory.ipa` against the production API. It needs an Apple Distribution certificate in the keychain (`EXACT_IDENTITY`, its SHA-1), an App Store provisioning profile for the app ID (`EXACT_PROFILE`), and a build number above the last upload (`EXACT_BUILD_NUMBER`). The certificate and its private key are kept as a `.p12` in the Amp project secrets `APPLE_SIGNING_P12_B64` and `APPLE_SIGNING_P12_PASSWORD`, which Amp's Mac signing step installs; the profile can be downloaded from Apple.
+
+Upload with `xcrun altool --upload-app -f target/CoopInventory.ipa -t ios --apiKey <key id> --apiIssuer <issuer id>`. Apple processes it in 5 to 30 minutes; then add it to a TestFlight group. A tester must accept TestFlight's email invite on their iPhone, or TestFlight says the app is "not available".
+
 ## Local development
 
 Clone https://github.com/expo/exact beside this repo and run `bun scripts/exact.mjs setup` there once, then `npm install` here. See `AGENTS.md` for the commands: `bun server.ts` (the same API handler, on Turso or a scratch database), `bun exact.mjs web` (the app), `bun exact.mjs test web` (the app's tests) and `bun test tools/` (the API's own tests).
