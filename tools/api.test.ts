@@ -57,5 +57,6 @@ test('bad input is refused', async () => {
   expect((await call('POST', '/set', { storeId: 1, productId: 1, count: 1_000_001 })).status).toBe(400);
   expect((await call('POST', '/set', { storeId: 1, productId: 1, count: 1.5 })).status).toBe(400);
   expect((await call('DELETE', '/stores/abc')).status).toBe(400);
+  expect((await call('GET', '/stores/abc/stock')).status).toBe(400);
   expect((await call('GET', '/nowhere')).status).toBe(404);
 });

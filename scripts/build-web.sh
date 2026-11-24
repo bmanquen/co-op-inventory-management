@@ -13,6 +13,8 @@ if [ ! -e "$EXACT/scripts/app-cli.mjs" ]; then
   git clone -q https://github.com/expo/exact.git "$EXACT"
   git -C "$EXACT" checkout -q "$EXACT_COMMIT"
 fi
+# A checkout that was already there may be on another commit; a deploy must build from the tested one.
+[ "$(git -C "$EXACT" rev-parse HEAD)" = "$EXACT_COMMIT" ] || { echo "Check out Exact $EXACT_COMMIT in $EXACT first" >&2; exit 1; }
 command -v bun >/dev/null || { curl -fsSL https://bun.sh/install | bash; export PATH="$HOME/.bun/bin:$PATH"; }
 command -v rustup >/dev/null || curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
 export PATH="$HOME/.cargo/bin:$PATH"
