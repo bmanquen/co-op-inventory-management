@@ -25,6 +25,7 @@
   "$schema": ".exact/checkout/scripts/app.schema.json",
   "name": "Co-op Inventory",
   "short_name": "Co-op Inventory",
+  "version": "1.0.0",
   "id": "dev.offbyonelabs.coopinventory",
   "start_url": "/",
   "display": "standalone",
