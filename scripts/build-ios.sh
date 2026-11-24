@@ -15,4 +15,8 @@ export EXACT_NON_EXEMPT_ENCRYPTION=false
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
+# Build from the Exact commit build-web.sh pins (the one the tests last passed on): every upload uses a build number.
+export EXACT=${EXACT:-$root/../exact}
+pin=$(sed -n 's/^EXACT_COMMIT=//p' scripts/build-web.sh)
+[ "$(git -C "$EXACT" rev-parse HEAD)" = "$pin" ] || { echo "Check out Exact $pin in $EXACT first" >&2; exit 1; }
 bun exact.mjs ios --device --archive target/CoopInventory.ipa --json
