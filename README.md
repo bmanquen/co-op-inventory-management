@@ -4,7 +4,7 @@ App for tracking coffee product stock at each store. Data lives in Turso; every 
 
 ## Deploying (Expo Hosting)
 
-EAS Workflows deploy automatically: every pull request gets a preview deploy on the test database (`.eas/workflows/deploy-preview.yml`), and every merge to `main` deploys to production (`.eas/workflows/deploy-production.yml`). The commands below are for deploying by hand.
+EAS Workflows deploy automatically: adding the `preview` label to a pull request deploys a preview on the test database (`.eas/workflows/deploy-preview.yml`; remove and re-add the label to deploy a later push), and every merge to `main` deploys to production (`.eas/workflows/deploy-production.yml`). The commands below are for deploying by hand.
 
 Server settings (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `TEAM_CODE`) are EAS environment variables with **sensitive** visibility (Expo Hosting can't use secret ones). The `--environment` flag picks the database:
 
@@ -23,8 +23,6 @@ npx expo export --platform web && npx eas-cli@latest deploy --prod --environment
 The repo root is an [Expo Exact](https://github.com/expo/exact) app: `app.contract` (the screens), `app.ts` (the data module), `app.forma` (colours and icons), `app.test.contract` (tests) and `app.json` (Exact's manifest). Beside it is a small Expo project that only hosts it: `app.config.json` is Expo's config, and Expo Router serves the API at `/api/*` (`src/app/api/[...path]+api.ts`, handler in `src/server/api.ts`) plus the app's page at `/`, `/products` and `/stores`.
 
 `scripts/build-web.sh` builds the app into `public/`, and `expo export` ships that page beside the API. Both EAS workflows run the script before deploying; `API_BASE_URL` picks which site's API the page calls. Exact is not on npm, so the script clones expo/exact at a pinned commit and needs Rust (it installs rustup) and Bun.
-
-`/api/inventory` is the old React Native app's API, kept so phones and open tabs still on that version keep working; remove it once nobody uses it.
 
 There is no Expo Go: Expo Go can't run Exact apps. iPhone builds need a Mac (`bun exact.mjs share`).
 
