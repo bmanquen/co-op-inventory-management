@@ -384,9 +384,6 @@ component App
                               button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`${t.name}-${it.id}-delete`
                                 appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
                                 text "Delete" font-size="0.875rem" color="ink.delete"
-                          // At the list's end, as a settings page puts it, not alone at the window's foot.
-                          if t.name == "stores"
-                            SignOut(press=askSignOut)
                       else
                         // On a phone, a row swipes left to Delete, as in Mail; it still asks before it deletes.
                         list appearance="auto" listStyle="plain" flex=1 min-height=0
@@ -394,8 +391,8 @@ component App
                             for it in (t.name == "products" ? products.items : stores.items) key=it.id
                               row delete=askRemove(t.name, it.id, it.name) testId=`${t.name}-${it.id}`
                                 text it.name overflow-wrap="break-word"
-                      // On a phone, under the list, above the tab bar: in reach of a thumb.
-                      if t.name == "stores" and not host.web
+                      // Under the list and apart from it, not one of its rows; on a phone, above the tab bar.
+                      if t.name == "stores"
                         SignOut(press=askSignOut)
       // The tabs. On the web, a web app's row across the top (order -1), centred to the content's width.
       // On a phone, left to the platform: iOS's tab bar at the bottom, in reach of a thumb.
@@ -476,7 +473,7 @@ component App
         text "You’ll need the team code to sign in again."
         button commandfor="sign-out" command="close" testId="sign-out-cancel"
           text "Cancel"
-        button press=signOut commandfor="sign-out" command="close" testId="sign-out-confirm"
+        button press=signOut destructive=true commandfor="sign-out" command="close" testId="sign-out-confirm"
           text "Sign Out"
 
 // Every tab's title, with whether the last change reached the server (React Native's SyncStatus).
@@ -522,7 +519,7 @@ component SignOut
   props
     press: action
   view
-    row padding="16px" justify-content="center"
+    row padding="16px" justify-content="center" border-top="1px solid" border-top-color="line.list"
       button press=press testId="sign-out" appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press
         padding="10px 16px" border="1px solid" border-color="line.field" border-radius="6px" background-color="surface"
         text "Sign Out" font-size="0.875rem" font-weight=600 color="brand"
