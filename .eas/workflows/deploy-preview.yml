@@ -1,7 +1,10 @@
 name: Deploy preview
 
 on:
-  pull_request: {}
+  # Only when a PR gets the `preview` label, so pushes don't spend Expo's CI minutes.
+  # To deploy a later push, remove the label and add it again.
+  pull_request_labeled:
+    labels: ['preview']
 
 jobs:
   deploy:

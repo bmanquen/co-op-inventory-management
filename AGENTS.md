@@ -40,7 +40,6 @@ plus a small Expo project that only hosts it:
   Expo Hosting's `/api/*` (`src/app/api/[...path]+api.ts`). `src/server/db.ts` holds the tables both create.
 - `src/app/index+api.ts`, `src/app/[page]+api.ts`: answer `/`, `/products` and `/stores` with Exact's
   `shell.html`. Add a new route in `routes nav` to `PAGES` in `src/server/page.ts` too.
-- `src/app/api/inventory+api.ts`: the old React Native app's API, kept for clients still on it.
 - `app.config.json`: Expo's config (hosting and EAS). `app.json` is Exact's manifest, not Expo's.
 - `scripts/build-web.sh`: builds the app into `public/`, which `expo export` ships beside `/api`.
 
