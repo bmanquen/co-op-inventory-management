@@ -53,12 +53,17 @@ test "count stock, see what needs restocking, type a count and undo it"
   expect text "count-2" == "0"
   tap "filter-all"
   expect text "count-1" == "2"
-  // A typo keeps the count rather than saving 0.
+  // The count field takes digits only: a letter is dropped, and letters alone change nothing.
   type "count-1" "4o"
+  expect text "count-1" == "4"
+  type "count-1" "1,500"
   type "count-1" key "Tab"
   clock data
-  expect text "count-1" == "2"
-  expect text "notice" == "“4o” isn’t a number, so House Blend stays at 2."
+  expect text "count-1" == "1500"
+  type "count-1" "abc"
+  type "count-1" key "Tab"
+  clock data
+  expect text "count-1" == "1500"
   clock +4000
   expect tree missing "undo-toast"
 

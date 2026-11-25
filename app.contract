@@ -75,8 +75,6 @@ component App
   state addedName = ""
   // Which kind of save the person made last, so the status speaks for that one.
   state lastWrite = ""
-  // Says a typed count wasn't a number, so it wasn't saved.
-  state typoNote = ""
   state doomedList = ""
   state doomedId = ""
   state doomedName = ""
@@ -127,8 +125,6 @@ component App
     every(10000, pull)
   task hideUndo when undoShown
     after(4000, dismissUndo)
-  task hideTypo when typoNote != ""
-    after(4000, dismissTypo)
 
   action pull
     refresh stores
@@ -175,15 +171,18 @@ component App
   action adjust(id: string, delta: number)
     send adjusted = adjustStock(code, current, id, delta)
     lastWrite = "adjusted"
-  action editCount(id: string, v: string)
+  // The field takes digits only: other characters are dropped as they're typed or pasted ("1,500" is 1500),
+  // and an edit with no digits at all ("abc" over 40) leaves the field as it was.
+  action editCount(id: string, count: number, v: string)
+    let digits = v.split("").filter(c => "0123456789".includes(c)).join("")
+    let was = countId == id ? countDraft : `${count}`
     countId = id
-    countDraft = v
-  // An empty field saves 0, as React Native's Number("") does; a typo ("4o") keeps the old count. Then Undo is offered.
+    countDraft = digits == "" and v != "" ? was : digits
+  // An empty field saves 0, as React Native's Number("") does. Then Undo is offered.
   action saveCount(id: string, name: string, before: number)
     if countId == id
-      let n = match parseNumber(countDraft) { case some(x) => min(1000000, max(0, floor(x))), case none => countDraft.trim() == "" ? 0 : before }
+      let n = match parseNumber(countDraft) { case some(x) => min(1000000, max(0, floor(x))), case none => 0 }
       countId = ""
-      typoNote = match parseNumber(countDraft) { case some(x) => "", case none => countDraft.trim() == "" ? "" : `“${countDraft.trim()}” isn’t a number, so ${name} stays at ${before}.` }
       if n != before
         send counted = setStock(code, current, id, n)
         lastWrite = "counted"
@@ -199,8 +198,6 @@ component App
     undoShown = false
   action dismissUndo
     undoShown = false
-  action dismissTypo
-    typoNote = ""
 
   action editNew(list: string, v: string)
     if list == "products"
@@ -277,8 +274,8 @@ component App
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
-                    if failed or offline or typoNote != ""
-                      text (failed ? saveError : typoNote != "" ? typoNote : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
+                    if failed or offline
+                      text (failed ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
                         role="alert" testId="notice" font-size="0.875rem" color="out.ink" background-color="out.fill" padding="8px 16px"
                     if t.name == "stock"
                       if stores.items.length == 0
@@ -332,7 +329,7 @@ component App
                                       display="flex" align-items="center" justify-content="center" padding=0
                                       image "symbol:minus" color=(l.count == 0 ? "ink.disabled" : "brand")
                                     input inputmode="numeric" appearance="none" value=(countId == l.id ? countDraft : `${l.count}`)
-                                      input=editCount(l.id) blur=saveCount(l.id, l.name, l.count)
+                                      input=editCount(l.id, l.count) maxlength=7 blur=saveCount(l.id, l.name, l.count)
                                       aria-label=`${l.name} count at ${currentName}` testId=`count-${l.id}` min-height="44px"
                                       width=`${max(52, (countId == l.id ? countDraft : l.count.toString()).length * 12 + 16) / 18}em` box-sizing="border-box"
                                       text-align="center" font-size="1.125em" font-weight=700 font-variant-numeric="tabular-nums" color="ink"
