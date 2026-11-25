@@ -118,6 +118,13 @@ component App
   derive offline = failed(stores) or failed(products) or failed(stock)
   derive restock = stock.lines.filter(l => isLow(l.count))
   derive shown = needsOnly ? restock : stock.lines
+  // An add field's name already in its list, as typed ("downtown" finds "Downtown"), checked before it's sent.
+  derive dupProduct = match first(products.items.filter(p => p.name.toLowerCase() == newProduct.trim().toLowerCase())) { case some(p) => p.name, case none => "" }
+  derive dupStore = match first(stores.items.filter(s => s.name.toLowerCase() == newStore.trim().toLowerCase())) { case some(s) => s.name, case none => "" }
+  // What each add field says under it: the duplicate as you type, else why the last add of the name still there failed.
+  derive addFailed = not pending(added) and replyError(added) != ""
+  derive productNote = dupProduct != "" ? `“${dupProduct}” is already on the list.` : addFailed and addingTo == "products" and newProduct.trim() == addedName ? replyError(added) : ""
+  derive storeNote = dupStore != "" ? `“${dupStore}” is already on the list.` : addFailed and addingTo == "stores" and newStore.trim() == addedName ? replyError(added) : ""
   derive storeMatches = stores.items.filter(s => s.name.toLowerCase().includes(storeQuery.trim().toLowerCase()))
 
   // Other people's changes arrive by polling, every 10 s as in the React Native app.
@@ -140,7 +147,10 @@ component App
   action signIn
     if draftCode.trim() != "" and not pending(checked)
       send checked = checkCode(draftCode.trim())
-  // Forgets the saved code on this device, for a shared one; the sign-in screen shows again.
+  // Asks first: on a shared device, the person may not know the team code to sign back in.
+  action askSignOut
+    showModal("sign-out")
+  // Forgets the saved code on this device; the sign-in screen shows again.
   action signOut
     code = ""
     undoShown = false
@@ -211,7 +221,7 @@ component App
       newStore = v
   action addNew(list: string)
     let name = (list == "products" ? newProduct : newStore).trim()
-    if name != "" and not pending(added)
+    if name != "" and not pending(added) and (list == "products" ? dupProduct : dupStore) == ""
       send added = addName(code, list, name)
       lastWrite = "added"
       addingTo = list
@@ -279,8 +289,9 @@ component App
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
-                    if failed or offline
-                      text (failed ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
+                    // A failed add says why under its own field instead.
+                    if (failed and lastWrite != "added") or offline
+                      text ((failed and lastWrite != "added") ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
                         role="alert" testId="notice" font-size="0.875rem" color="out.ink" background-color="out.fill" padding="8px 16px"
                     if t.name == "stock"
                       if stores.items.length == 0
@@ -355,12 +366,16 @@ component App
                         input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name) maxlength=100
                           placeholder=(t.name == "products" ? "New product, e.g. Oat milk 1L" : "New store location")
                           aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
+                          aria-invalid=((t.name == "products" ? productNote : storeNote) != "")
                           appearance="none" min-height="44px" box-sizing="border-box" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
                           ::placeholder
                             color="ink.muted"
-                        button press=addNew(t.name) testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
-                          border="none" border-radius="6px" background-color="brand"
+                        button press=addNew(t.name) disabled=((t.name == "products" ? dupProduct : dupStore) != "") testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
+                          border="none" border-radius="6px" background-color="brand" opacity=((t.name == "products" ? dupProduct : dupStore) != "" ? 0.5 : 1)
                           text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
+                      if (t.name == "products" ? productNote : storeNote) != ""
+                        text (t.name == "products" ? productNote : storeNote) role="status" testId=`add-note-${t.name}`
+                          font-size="0.875rem" color="out.ink" padding="8px 16px" border-bottom="1px solid" border-bottom-color="line.list"
                       if host.web
                         scroll flex=1 min-height=0
                           for it in (t.name == "products" ? products.items : stores.items) key=it.id
@@ -369,6 +384,9 @@ component App
                               button press=askRemove(t.name, it.id, it.name) aria-label=`Delete ${it.name}` testId=`${t.name}-${it.id}-delete`
                                 appearance="none" -exact-hover-effect="highlight" class=Press margin-left="auto" border="none" background-color="transparent" padding=0
                                 text "Delete" font-size="0.875rem" color="ink.delete"
+                          // At the list's end, as a settings page puts it, not alone at the window's foot.
+                          if t.name == "stores"
+                            SignOut(press=askSignOut)
                       else
                         // On a phone, a row swipes left to Delete, as in Mail; it still asks before it deletes.
                         list appearance="auto" listStyle="plain" flex=1 min-height=0
@@ -376,11 +394,9 @@ component App
                             for it in (t.name == "products" ? products.items : stores.items) key=it.id
                               row delete=askRemove(t.name, it.id, it.name) testId=`${t.name}-${it.id}`
                                 text it.name overflow-wrap="break-word"
-                      if t.name == "stores"
-                        row padding="16px" justify-content="center"
-                          button press=signOut testId="sign-out" appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press
-                            padding="10px 16px" border="1px solid" border-color="line.field" border-radius="6px" background-color="surface"
-                            text "Sign Out" font-size="0.875rem" font-weight=600 color="brand"
+                      // On a phone, under the list, above the tab bar: in reach of a thumb.
+                      if t.name == "stores" and not host.web
+                        SignOut(press=askSignOut)
       // The tabs. On the web, a web app's row across the top (order -1), centred to the content's width.
       // On a phone, left to the platform: iOS's tab bar at the bottom, in reach of a thumb.
       // accent-color tints the selected tab (and each tab's screen) in the brand brown, not iOS's blue.
@@ -456,6 +472,12 @@ component App
           text "Cancel"
         button press=remove destructive=true commandfor="remove" command="close" testId="remove-confirm"
           text "Delete"
+      dialog id="sign-out" role="alertdialog" aria-label="Sign out of this device?"
+        text "You’ll need the team code to sign in again."
+        button commandfor="sign-out" command="close" testId="sign-out-cancel"
+          text "Cancel"
+        button press=signOut commandfor="sign-out" command="close" testId="sign-out-confirm"
+          text "Sign Out"
 
 // Every tab's title, with whether the last change reached the server (React Native's SyncStatus).
 component Bar
@@ -495,3 +517,12 @@ component Chip
     button press=press aria-pressed=on testId=id appearance="none" -exact-hover-effect="highlight" class=Press min-height="44px" box-sizing="border-box" display="flex" align-items="center" padding="7px 14px" border="none" border-radius="999px"
       background-color=(on ? "brand" : "surface.chip")
       text label font-size="0.8125rem" font-weight=600 color=(on ? "ink.on-brand" : "ink.muted")
+
+component SignOut
+  props
+    press: action
+  view
+    row padding="16px" justify-content="center"
+      button press=press testId="sign-out" appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press
+        padding="10px 16px" border="1px solid" border-color="line.field" border-radius="6px" background-color="surface"
+        text "Sign Out" font-size="0.875rem" font-weight=600 color="brand"

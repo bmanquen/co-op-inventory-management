@@ -55,7 +55,9 @@ test('bad input is refused', async () => {
   expect((await call('POST', '/stores', { name: 'x'.repeat(101) })).status).toBe(400);
   expect((await call('POST', '/stores', { name: '   ' })).status).toBe(400);
   // A name already there, in any case, is refused; the same name in the other list is fine.
-  expect((await call('POST', '/stores', { name: ' downtown ' })).status).toBe(409);
+  const dup = await call('POST', '/stores', { name: ' downtown ' });
+  expect(dup.status).toBe(409);
+  expect((await dup.json()).error).toBe('“Downtown” is already on the list.');
   expect((await call('POST', '/products', { name: 'Downtown' })).status).toBe(201);
   expect((await call('POST', '/set', { storeId: 1, productId: 1, count: 1_000_001 })).status).toBe(400);
   expect((await call('POST', '/set', { storeId: 1, productId: 1, count: 1.5 })).status).toBe(400);

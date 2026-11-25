@@ -58,7 +58,11 @@ export async function handle(req: Request, db: Client, teamCode: string): Promis
         sql: `INSERT INTO ${list} (name) SELECT ?1 WHERE NOT EXISTS (SELECT 1 FROM ${list} WHERE lower(name) = lower(?1))`,
         args: [name],
       });
-      if (res.rowsAffected === 0) return send({ error: `There's already a ${list === 'stores' ? 'store' : 'product'} called “${name}”.` }, 409);
+      if (res.rowsAffected === 0) {
+        // Named as it's stored ("Downtown"), not as typed ("downtown"), so people see which row matches.
+        const same = await db.execute({ sql: `SELECT name FROM ${list} WHERE lower(name) = lower(?) LIMIT 1`, args: [name] });
+        return send({ error: `“${String(same.rows[0]?.name ?? name)}” is already on the list.` }, 409);
+      }
       return send({ ok: true }, 201);
     }
     // Deleting a product or store deletes its stock counts too.

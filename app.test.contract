@@ -13,6 +13,13 @@ test "a wrong team code is refused; the right one signs in"
   tap "no-stores"
   expect state nav.tab == "stores"
   tap "sign-out"
+  clock settle
+  tap "sign-out-cancel"
+  clock settle
+  expect state code == "test-code"
+  tap "sign-out"
+  clock settle
+  tap "sign-out-confirm"
   clock data
   expect state code == ""
   expect tree has "sign-in"
@@ -106,14 +113,16 @@ test "add stores and products, delete a product"
   clock data
   expect state newStore == ""
   expect tree has "stores-1"
-  // The same name again, in any case, is refused and stays in the field.
+  // The same name again, in any case, says so under the field as it's typed, and can't be added.
   type "new-stores" "downtown"
-  tap "add-stores"
+  expect text "add-note-stores" == "“Downtown” is already on the list."
+  expect disabled "add-stores"
+  type "new-stores" key "Enter"
   clock data
-  expect text "notice" == "There's already a store called “downtown”."
   expect state newStore == "downtown"
   expect tree missing "stores-2"
   type "new-stores" ""
+  expect tree missing "add-note-stores"
   tap "tab-products"
   type "new-products" "House Blend"
   tap "add-products"
@@ -142,7 +151,7 @@ test "a save that fails keeps what was typed and says why"
   clock data
   expect state newProduct == "House Blend"
   expect text "sync-label" == "Not saved"
-  expect text "notice" == "Can’t reach the server. Check your connection and try again."
+  expect text "add-note-products" == "Can’t reach the server. Check your connection and try again."
   pass fetch "http://127.0.0.1:8787"
   tap "add-products"
   clock data
