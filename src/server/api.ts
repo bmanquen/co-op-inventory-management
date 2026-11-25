@@ -70,7 +70,7 @@ export async function handle(req: Request, db: Client, teamCode: string): Promis
     }
     // Every product with its count at one store; a product with no stock row counts 0.
     case 'GET :list/:id/stock': {
-      if (list !== 'stores') break;
+      if (list !== 'stores' || !isId(Number(id))) break;
       const rs = await db.execute({
         sql: 'SELECT p.id, p.name, coalesce(s.count, 0) AS count FROM products p LEFT JOIN stock s ON s.product_id = p.id AND s.store_id = ? ORDER BY p.name',
         args: [Number(id)],

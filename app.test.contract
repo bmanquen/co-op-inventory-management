@@ -53,6 +53,17 @@ test "count stock, see what needs restocking, type a count and undo it"
   expect text "count-2" == "0"
   tap "filter-all"
   expect text "count-1" == "2"
+  // The count field takes digits only: a letter is dropped, and letters alone change nothing.
+  type "count-1" "4o"
+  expect text "count-1" == "4"
+  type "count-1" "1,500"
+  type "count-1" key "Tab"
+  clock data
+  expect text "count-1" == "1500"
+  type "count-1" "abc"
+  type "count-1" key "Tab"
+  clock data
+  expect text "count-1" == "1500"
   clock +4000
   expect tree missing "undo-toast"
 
@@ -102,3 +113,79 @@ test "add stores and products, delete a product"
   clock data
   expect tree missing "line-1"
   expect tree has "line-2"
+
+test "a save that fails keeps what was typed and says why"
+  stored code "test-code"
+  clock data
+  tap "tab-products"
+  fail fetch "http://127.0.0.1:8787"
+  type "new-products" "House Blend"
+  tap "add-products"
+  clock data
+  expect state newProduct == "House Blend"
+  expect text "sync-label" == "Not saved"
+  expect text "notice" == "Can’t reach the server. Check your connection and try again."
+  pass fetch "http://127.0.0.1:8787"
+  tap "add-products"
+  clock data
+  expect state newProduct == ""
+  expect tree has "products-1"
+  expect text "sync-label" == "Saved"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  tap "tab-stock"
+  clock +10000
+  clock data
+  request DELETE "/products/1" as test-code
+  tap "plus-1"
+  clock data
+  expect text "notice" == "That product or store was removed. The list is up to date now."
+
+test "a server it can't reach is not an empty list"
+  stored code "test-code"
+  fail fetch "http://127.0.0.1:8787"
+  clock data
+  expect tree missing "no-stores"
+  expect text "sync-label" == "Offline"
+  expect tree has "notice"
+  pass fetch "http://127.0.0.1:8787"
+  clock +10000
+  clock data
+  expect tree has "no-stores"
+  expect tree missing "notice"
+
+test "an old failed delete doesn't say Not saved once later saves work"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/products" {"name": "House Blend"} as test-code
+  request POST "/products" {"name": "Decaf"} as test-code
+  clock +10000
+  clock data
+  tap "tab-products"
+  tap "products-1-delete"
+  clock settle
+  fail fetch "http://127.0.0.1:8787"
+  tap "remove-confirm"
+  clock data
+  expect text "sync-label" == "Not saved"
+  pass fetch "http://127.0.0.1:8787"
+  tap "tab-stock"
+  clock +10000
+  clock data
+  tap "plus-2"
+  clock data
+  expect text "count-2" == "1"
+  expect text "sync-label" == "Saved"
+  expect tree missing "notice"
+
+test "text typed while an add saves stays in the field"
+  stored code "test-code"
+  clock data
+  tap "tab-products"
+  // The server takes House Blend 200 ms later, while Decaf is being typed.
+  answer fetch "http://127.0.0.1:8787/products" method POST with 201 {"ok": true} after 200
+  type "new-products" "House Blend"
+  tap "add-products"
+  type "new-products" "Decaf"
+  clock +200
+  clock data
+  expect state newProduct == "Decaf"
