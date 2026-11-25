@@ -72,6 +72,11 @@ component App
   state newProduct = ""
   state newStore = ""
   state addingTo = ""
+  state addedName = ""
+  // Which kind of save the person made last, so the status speaks for that one.
+  state lastWrite = ""
+  // Says a typed count wasn't a number, so it wasn't saved.
+  state typoNote = ""
   state doomedList = ""
   state doomedId = ""
   state doomedName = ""
@@ -107,8 +112,9 @@ component App
   derive signedIn = code != "" and not denied
   derive signInError = replyError(checked) != "" ? replyError(checked) : denied ? "Wrong team code." : ""
   derive saving = pending(adjusted) or pending(counted) or pending(added) or pending(removed)
-  // The first write that failed, so the person sees why; each clears when that kind of write next succeeds.
-  derive saveError = match first([replyError(adjusted), replyError(counted), replyError(added), replyError(removed)].filter(e => e != "")) { case some(e) => e, case none => "" }
+  // Why the latest save failed. An older failure of another kind (a delete) no longer shows once later saves work.
+  derive saveError = (lastWrite == "adjusted" ? replyError(adjusted) : lastWrite == "counted" ? replyError(counted)
+    : lastWrite == "added" ? replyError(added) : lastWrite == "removed" ? replyError(removed) : "")
   derive failed = not saving and saveError != ""
   // A failed read keeps its last answer (or its empty placeholder), so say the server is unreachable.
   derive offline = failed(stores) or failed(products) or failed(stock)
@@ -121,6 +127,8 @@ component App
     every(10000, pull)
   task hideUndo when undoShown
     after(4000, dismissUndo)
+  task hideTypo when typoNote != ""
+    after(4000, dismissTypo)
 
   action pull
     refresh stores
@@ -166,6 +174,7 @@ component App
 
   action adjust(id: string, delta: number)
     send adjusted = adjustStock(code, current, id, delta)
+    lastWrite = "adjusted"
   action editCount(id: string, v: string)
     countId = id
     countDraft = v
@@ -174,8 +183,10 @@ component App
     if countId == id
       let n = match parseNumber(countDraft) { case some(x) => min(1000000, max(0, floor(x))), case none => countDraft.trim() == "" ? 0 : before }
       countId = ""
+      typoNote = match parseNumber(countDraft) { case some(x) => "", case none => countDraft.trim() == "" ? "" : `“${countDraft.trim()}” isn’t a number, so ${name} stays at ${before}.` }
       if n != before
         send counted = setStock(code, current, id, n)
+        lastWrite = "counted"
         undoStore = current
         undoProduct = id
         undoName = name
@@ -184,9 +195,12 @@ component App
         undoShown = true
   action undo
     send counted = setStock(code, undoStore, undoProduct, undoBefore)
+    lastWrite = "counted"
     undoShown = false
   action dismissUndo
     undoShown = false
+  action dismissTypo
+    typoNote = ""
 
   action editNew(list: string, v: string)
     if list == "products"
@@ -197,13 +211,16 @@ component App
     let name = (list == "products" ? newProduct : newStore).trim()
     if name != "" and not pending(added)
       send added = addName(code, list, name)
+      lastWrite = "added"
       addingTo = list
-  // The field clears only once the server took the name, so a refused or offline add keeps it to retry.
+      addedName = name
+  // The field clears only once the server took the name, so a refused or offline add keeps it to retry,
+  // and only if it still holds that name, so text typed while it saved stays.
   action afterAdd
     if replyError(added) == ""
-      if addingTo == "products"
+      if addingTo == "products" and newProduct.trim() == addedName
         newProduct = ""
-      else
+      if addingTo == "stores" and newStore.trim() == addedName
         newStore = ""
   action askRemove(list: string, id: string, name: string)
     doomedList = list
@@ -212,6 +229,7 @@ component App
     showModal("remove")
   action remove
     send removed = removeName(code, doomedList, doomedId)
+    lastWrite = "removed"
 
   view
     // navigationBack names the sheet's close button: a swipe down presses it.
@@ -259,8 +277,8 @@ component App
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
-                    if failed or offline
-                      text (failed ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
+                    if failed or offline or typoNote != ""
+                      text (failed ? saveError : typoNote != "" ? typoNote : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
                         role="alert" testId="notice" font-size="0.875rem" color="out.ink" background-color="out.fill" padding="8px 16px"
                     if t.name == "stock"
                       if stores.items.length == 0
