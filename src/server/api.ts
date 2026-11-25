@@ -52,7 +52,13 @@ export async function handle(req: Request, db: Client, teamCode: string): Promis
     case 'POST :list': {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       if (!name || name.length > 100) return send({ error: 'Enter a name of up to 100 characters.' }, 400);
-      await db.execute({ sql: `INSERT INTO ${list} (name) VALUES (?)`, args: [name] });
+      // One statement, so two people adding the same name at once can't both get in.
+      // shortcut: SQLite's lower() folds A–Z only, so "Café" and "CAFÉ" both get in; fine for store and product names.
+      const res = await db.execute({
+        sql: `INSERT INTO ${list} (name) SELECT ?1 WHERE NOT EXISTS (SELECT 1 FROM ${list} WHERE lower(name) = lower(?1))`,
+        args: [name],
+      });
+      if (res.rowsAffected === 0) return send({ error: `There's already a ${list === 'stores' ? 'store' : 'product'} called “${name}”.` }, 409);
       return send({ ok: true }, 201);
     }
     // Deleting a product or store deletes its stock counts too.

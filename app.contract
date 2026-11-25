@@ -140,6 +140,10 @@ component App
   action signIn
     if draftCode.trim() != "" and not pending(checked)
       send checked = checkCode(draftCode.trim())
+  // Forgets the saved code on this device, for a shared one; the sign-in screen shows again.
+  action signOut
+    code = ""
+    undoShown = false
   action afterCheck
     if replyError(checked) == ""
       code = draftCode.trim()
@@ -192,9 +196,10 @@ component App
         undoBefore = before
         undoCount = n
         undoShown = true
+  // Undo takes back only this change, as +/− do, so a tap someone else made meanwhile stays.
   action undo
-    send counted = setStock(code, undoStore, undoProduct, undoBefore)
-    lastWrite = "counted"
+    send adjusted = adjustStock(code, undoStore, undoProduct, undoBefore - undoCount)
+    lastWrite = "adjusted"
     undoShown = false
   action dismissUndo
     undoShown = false
@@ -371,6 +376,11 @@ component App
                             for it in (t.name == "products" ? products.items : stores.items) key=it.id
                               row delete=askRemove(t.name, it.id, it.name) testId=`${t.name}-${it.id}`
                                 text it.name overflow-wrap="break-word"
+                      if t.name == "stores"
+                        row padding="16px" justify-content="center"
+                          button press=signOut testId="sign-out" appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press
+                            padding="10px 16px" border="1px solid" border-color="line.field" border-radius="6px" background-color="surface"
+                            text "Sign Out" font-size="0.875rem" font-weight=600 color="brand"
       // The tabs. On the web, a web app's row across the top (order -1), centred to the content's width.
       // On a phone, left to the platform: iOS's tab bar at the bottom, in reach of a thumb.
       // accent-color tints the selected tab (and each tab's screen) in the brand brown, not iOS's blue.

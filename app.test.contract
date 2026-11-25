@@ -12,6 +12,10 @@ test "a wrong team code is refused; the right one signs in"
   expect state code == "test-code"
   tap "no-stores"
   expect state nav.tab == "stores"
+  tap "sign-out"
+  clock data
+  expect state code == ""
+  expect tree has "sign-in"
 
 test "a saved code the server no longer accepts asks again"
   stored code "old-code"
@@ -48,11 +52,13 @@ test "count stock, see what needs restocking, type a count and undo it"
   tap "filter-restock"
   expect tree missing "line-1"
   expect tree has "line-2"
+  // Someone else adds one meanwhile: Undo takes back only this change, so their tap stays (12 + 1 − 10 = 3).
+  request POST "/adjust" {"storeId": 2, "productId": 1, "delta": 1} as test-code
   tap "undo"
   clock data
   expect text "count-2" == "0"
   tap "filter-all"
-  expect text "count-1" == "2"
+  expect text "count-1" == "3"
   // The count field takes digits only: a letter is dropped, and letters alone change nothing.
   type "count-1" "4o"
   expect text "count-1" == "4"
@@ -100,6 +106,14 @@ test "add stores and products, delete a product"
   clock data
   expect state newStore == ""
   expect tree has "stores-1"
+  // The same name again, in any case, is refused and stays in the field.
+  type "new-stores" "downtown"
+  tap "add-stores"
+  clock data
+  expect text "notice" == "There's already a store called “downtown”."
+  expect state newStore == "downtown"
+  expect tree missing "stores-2"
+  type "new-stores" ""
   tap "tab-products"
   type "new-products" "House Blend"
   tap "add-products"
