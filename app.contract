@@ -130,6 +130,9 @@ component App
   // Other people's changes arrive by polling, every 10 s as in the React Native app.
   task poll mount
     every(10000, pull)
+  // Undo is offered only once the typed count is saved: it sends the difference, which on a count
+  // the server never took (offline, refused) or hasn't taken yet would change the real count.
+  derive canUndo = undoShown and not pending(counted) and replyError(counted) == ""
   task hideUndo when undoShown
     after(4000, dismissUndo)
 
@@ -154,6 +157,8 @@ component App
   action signOut
     code = ""
     undoShown = false
+    // So the next person doesn't see this one's failed save as "Not saved".
+    lastWrite = ""
   action afterCheck
     if replyError(checked) == ""
       code = draftCode.trim()
@@ -208,8 +213,9 @@ component App
         undoShown = true
   // Undo takes back only this change, as +/− do, so a tap someone else made meanwhile stays.
   action undo
-    send adjusted = adjustStock(code, undoStore, undoProduct, undoBefore - undoCount)
-    lastWrite = "adjusted"
+    if canUndo
+      send adjusted = adjustStock(code, undoStore, undoProduct, undoBefore - undoCount)
+      lastWrite = "adjusted"
     undoShown = false
   action dismissUndo
     undoShown = false
@@ -354,7 +360,7 @@ component App
                                       appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
                                       display="flex" align-items="center" justify-content="center" padding=0
                                       image "symbol:add" color="brand"
-                        if undoShown
+                        if canUndo
                           row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
                             padding="12px 14px" border-radius="14px" background-color="toast.fill"
                             text `${undoName} set to ${undoCount}` color="toast.ink" font-size="0.875em" flex=1 min-width=0 line-clamp=2

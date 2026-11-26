@@ -167,6 +167,35 @@ test "a save that fails keeps what was typed and says why"
   clock data
   expect text "notice" == "That product or store was removed. The list is up to date now."
 
+test "a typed count that didn't save offers no Undo, and signing out forgets the failure"
+  stored code "test-code"
+  request POST "/stores" {"name": "Airport"} as test-code
+  request POST "/products" {"name": "House Blend"} as test-code
+  request POST "/set" {"storeId": 1, "productId": 1, "count": 12} as test-code
+  clock +10000
+  clock data
+  clock settle
+  expect text "count-1" == "12"
+  fail fetch "http://127.0.0.1:8787"
+  type "count-1" "2"
+  type "count-1" key "Tab"
+  clock data
+  expect text "sync-label" == "Not saved"
+  // Undo sends the difference (+10), which on the unchanged 12 would make 22.
+  expect tree missing "undo-toast"
+  pass fetch "http://127.0.0.1:8787"
+  clock +10000
+  clock data
+  expect text "count-1" == "12"
+  tap "sign-out"
+  clock settle
+  tap "sign-out-confirm"
+  clock data
+  type "code" "test-code"
+  tap "sign-in"
+  clock data
+  expect text "sync-label" == "Saved"
+
 test "a server it can't reach is not an empty list"
   stored code "test-code"
   fail fetch "http://127.0.0.1:8787"

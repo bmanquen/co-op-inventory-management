@@ -40,7 +40,7 @@ The version people see is `version` in `app.json`; both store build scripts read
 
 ## Google Play (Android)
 
-The app is in Play internal testing (1.0.0 (1)). With the Android SDK (platform 37.2 and an NDK), a JDK 17+ and `npm install` (`bun .exact/checkout/scripts/exact.mjs setup --check --platform android` names what's missing), `scripts/build-android.sh` builds a signed `target/CoopInventory.aab` against the production API. It needs the upload keystore (`EXACT_KEYSTORE`, `EXACT_KEYSTORE_PASSWORD`, `EXACT_KEY_ALIAS`, `EXACT_KEY_PASSWORD`), which is kept in the Amp project secrets of those names, with the keystore file base64-encoded as `EXACT_KEYSTORE_B64` (the script decodes it when `EXACT_KEYSTORE` is unset), and a version code above every one Play has taken (`EXACT_BUILD_NUMBER`). Publishing needs a Play Console app record for `dev.offbyonelabs.coopinventory`; upload the `.aab` there.
+The app is in Play internal testing (1.0.0 (1)). With the Android SDK (platform 37.2 and an NDK), a JDK 17+ and `npm install` (`bun .exact/checkout/scripts/exact.mjs setup --check --platform android` names what's missing), `scripts/build-android.sh` builds a signed `target/CoopInventory.aab` against the production API. It needs the upload keystore (`EXACT_KEYSTORE`, `EXACT_KEYSTORE_PASSWORD`, `EXACT_KEY_ALIAS`, `EXACT_KEY_PASSWORD`), which is kept in the Amp project secrets of those names, with the keystore file base64-encoded as `EXACT_KEYSTORE_B64` (the script decodes it when `EXACT_KEYSTORE` is unset), and a version code above every one Play has taken (`EXACT_BUILD_NUMBER`). Play Console already has the app record for `dev.offbyonelabs.coopinventory`; for a new release, upload the `.aab` there.
 
 ## Local development
 
