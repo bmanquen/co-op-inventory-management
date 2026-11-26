@@ -12,6 +12,17 @@ test "a wrong team code is refused; the right one signs in"
   expect state code == "test-code"
   tap "no-stores"
   expect state nav.tab == "stores"
+  tap "sign-out"
+  clock settle
+  tap "sign-out-cancel"
+  clock settle
+  expect state code == "test-code"
+  tap "sign-out"
+  clock settle
+  tap "sign-out-confirm"
+  clock data
+  expect state code == ""
+  expect tree has "sign-in"
 
 test "a saved code the server no longer accepts asks again"
   stored code "old-code"
@@ -48,11 +59,13 @@ test "count stock, see what needs restocking, type a count and undo it"
   tap "filter-restock"
   expect tree missing "line-1"
   expect tree has "line-2"
+  // Someone else adds one meanwhile: Undo takes back only this change, so their tap stays (12 + 1 − 10 = 3).
+  request POST "/adjust" {"storeId": 2, "productId": 1, "delta": 1} as test-code
   tap "undo"
   clock data
   expect text "count-2" == "0"
   tap "filter-all"
-  expect text "count-1" == "2"
+  expect text "count-1" == "3"
   // The count field takes digits only: a letter is dropped, and letters alone change nothing.
   type "count-1" "4o"
   expect text "count-1" == "4"
@@ -100,6 +113,16 @@ test "add stores and products, delete a product"
   clock data
   expect state newStore == ""
   expect tree has "stores-1"
+  // The same name again, in any case, says so under the field as it's typed, and can't be added.
+  type "new-stores" "downtown"
+  expect text "add-note-stores" == "“Downtown” is already on the list."
+  expect disabled "add-stores"
+  type "new-stores" key "Enter"
+  clock data
+  expect state newStore == "downtown"
+  expect tree missing "stores-2"
+  type "new-stores" ""
+  expect tree missing "add-note-stores"
   tap "tab-products"
   type "new-products" "House Blend"
   tap "add-products"
@@ -128,7 +151,7 @@ test "a save that fails keeps what was typed and says why"
   clock data
   expect state newProduct == "House Blend"
   expect text "sync-label" == "Not saved"
-  expect text "notice" == "Can’t reach the server. Check your connection and try again."
+  expect text "add-note-products" == "Can’t reach the server. Check your connection and try again."
   pass fetch "http://127.0.0.1:8787"
   tap "add-products"
   clock data
@@ -143,6 +166,35 @@ test "a save that fails keeps what was typed and says why"
   tap "plus-1"
   clock data
   expect text "notice" == "That product or store was removed. The list is up to date now."
+
+test "a typed count that didn't save offers no Undo, and signing out forgets the failure"
+  stored code "test-code"
+  request POST "/stores" {"name": "Airport"} as test-code
+  request POST "/products" {"name": "House Blend"} as test-code
+  request POST "/set" {"storeId": 1, "productId": 1, "count": 12} as test-code
+  clock +10000
+  clock data
+  clock settle
+  expect text "count-1" == "12"
+  fail fetch "http://127.0.0.1:8787"
+  type "count-1" "2"
+  type "count-1" key "Tab"
+  clock data
+  expect text "sync-label" == "Not saved"
+  // Undo sends the difference (+10), which on the unchanged 12 would make 22.
+  expect tree missing "undo-toast"
+  pass fetch "http://127.0.0.1:8787"
+  clock +10000
+  clock data
+  expect text "count-1" == "12"
+  tap "sign-out"
+  clock settle
+  tap "sign-out-confirm"
+  clock data
+  type "code" "test-code"
+  tap "sign-in"
+  clock data
+  expect text "sync-label" == "Saved"
 
 test "a server it can't reach is not an empty list"
   stored code "test-code"

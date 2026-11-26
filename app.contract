@@ -118,11 +118,21 @@ component App
   derive offline = failed(stores) or failed(products) or failed(stock)
   derive restock = stock.lines.filter(l => isLow(l.count))
   derive shown = needsOnly ? restock : stock.lines
+  // An add field's name already in its list, as typed ("downtown" finds "Downtown"), checked before it's sent.
+  derive dupProduct = match first(products.items.filter(p => p.name.toLowerCase() == newProduct.trim().toLowerCase())) { case some(p) => p.name, case none => "" }
+  derive dupStore = match first(stores.items.filter(s => s.name.toLowerCase() == newStore.trim().toLowerCase())) { case some(s) => s.name, case none => "" }
+  // What each add field says under it: the duplicate as you type, else why the last add of the name still there failed.
+  derive addFailed = not pending(added) and replyError(added) != ""
+  derive productNote = dupProduct != "" ? `“${dupProduct}” is already on the list.` : addFailed and addingTo == "products" and newProduct.trim() == addedName ? replyError(added) : ""
+  derive storeNote = dupStore != "" ? `“${dupStore}” is already on the list.` : addFailed and addingTo == "stores" and newStore.trim() == addedName ? replyError(added) : ""
   derive storeMatches = stores.items.filter(s => s.name.toLowerCase().includes(storeQuery.trim().toLowerCase()))
 
   // Other people's changes arrive by polling, every 10 s as in the React Native app.
   task poll mount
     every(10000, pull)
+  // Undo is offered only once the typed count is saved: it sends the difference, which on a count
+  // the server never took (offline, refused) or hasn't taken yet would change the real count.
+  derive canUndo = undoShown and not pending(counted) and replyError(counted) == ""
   task hideUndo when undoShown
     after(4000, dismissUndo)
 
@@ -140,6 +150,15 @@ component App
   action signIn
     if draftCode.trim() != "" and not pending(checked)
       send checked = checkCode(draftCode.trim())
+  // Asks first: on a shared device, the person may not know the team code to sign back in.
+  action askSignOut
+    showModal("sign-out")
+  // Forgets the saved code on this device; the sign-in screen shows again.
+  action signOut
+    code = ""
+    undoShown = false
+    // So the next person doesn't see this one's failed save as "Not saved".
+    lastWrite = ""
   action afterCheck
     if replyError(checked) == ""
       code = draftCode.trim()
@@ -192,9 +211,11 @@ component App
         undoBefore = before
         undoCount = n
         undoShown = true
+  // Undo takes back only this change, as +/− do, so a tap someone else made meanwhile stays.
   action undo
-    send counted = setStock(code, undoStore, undoProduct, undoBefore)
-    lastWrite = "counted"
+    if canUndo
+      send adjusted = adjustStock(code, undoStore, undoProduct, undoBefore - undoCount)
+      lastWrite = "adjusted"
     undoShown = false
   action dismissUndo
     undoShown = false
@@ -206,7 +227,7 @@ component App
       newStore = v
   action addNew(list: string)
     let name = (list == "products" ? newProduct : newStore).trim()
-    if name != "" and not pending(added)
+    if name != "" and not pending(added) and (list == "products" ? dupProduct : dupStore) == ""
       send added = addName(code, list, name)
       lastWrite = "added"
       addingTo = list
@@ -270,12 +291,13 @@ component App
               else
                 column navigationKey=`${e.id}` navigationBar=(android ? "none" : "auto") position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
                   // The route's first child, so on iOS it is the platform's navigation bar with a large title.
-                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, offline=offline, web=(host.web or android))
+                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, offline=offline, web=(host.web or android), signOut=askSignOut)
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
-                    if failed or offline
-                      text (failed ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
+                    // A failed add says why under its own field instead.
+                    if (failed and lastWrite != "added") or offline
+                      text ((failed and lastWrite != "added") ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
                         role="alert" testId="notice" font-size="0.875rem" color="out.ink" background-color="out.fill" padding="8px 16px"
                     if t.name == "stock"
                       if stores.items.length == 0
@@ -338,7 +360,7 @@ component App
                                       appearance="none" -exact-hover-effect="highlight" class=Press border="none" background-color="transparent" width="2.75em" height="2.75em" border-radius="10px"
                                       display="flex" align-items="center" justify-content="center" padding=0
                                       image "symbol:add" color="brand"
-                        if undoShown
+                        if canUndo
                           row role="status" testId="undo-toast" font-size="min(-exact-body, 20px)" position="absolute" left="16px" right="16px" bottom="16px" align-items="center" gap="12px"
                             padding="12px 14px" border-radius="14px" background-color="toast.fill"
                             text `${undoName} set to ${undoCount}` color="toast.ink" font-size="0.875em" flex=1 min-width=0 line-clamp=2
@@ -350,12 +372,16 @@ component App
                         input value=(t.name == "products" ? newProduct : newStore) input=editNew(t.name) submit=addNew(t.name) maxlength=100
                           placeholder=(t.name == "products" ? "New product, e.g. Oat milk 1L" : "New store location")
                           aria-label=(t.name == "products" ? "New product" : "New store") testId=`new-${t.name}` flex=1 min-width=0
+                          aria-invalid=((t.name == "products" ? productNote : storeNote) != "")
                           appearance="none" min-height="44px" box-sizing="border-box" font-size="1rem" color="ink" padding="8px 10px" border="1px solid" border-color="line.field" border-radius="6px"
                           ::placeholder
                             color="ink.muted"
-                        button press=addNew(t.name) testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
-                          border="none" border-radius="6px" background-color="brand"
+                        button press=addNew(t.name) disabled=((t.name == "products" ? dupProduct : dupStore) != "") testId=`add-${t.name}` appearance="none" min-height="44px" box-sizing="border-box" -exact-hover-effect="highlight" class=Press margin-left="8px" padding="10px 16px"
+                          border="none" border-radius="6px" background-color="brand" opacity=((t.name == "products" ? dupProduct : dupStore) != "" ? 0.5 : 1)
                           text "Add" font-size="0.875rem" font-weight=600 color="ink.on-brand"
+                      if (t.name == "products" ? productNote : storeNote) != ""
+                        text (t.name == "products" ? productNote : storeNote) role="status" testId=`add-note-${t.name}`
+                          font-size="0.875rem" color="out.ink" padding="8px 16px" border-bottom="1px solid" border-bottom-color="line.list"
                       if host.web
                         scroll flex=1 min-height=0
                           for it in (t.name == "products" ? products.items : stores.items) key=it.id
@@ -441,11 +467,19 @@ component App
             if storeMatches.length == 0
               text `No stores match “${storeQuery}”` color="ink.empty" padding="12px"
       // React Native asks with Alert.alert (iOS) or the browser's confirm() (web): this question, Cancel and Delete.
+      // The text line makes it an alert: without one it is a chooser, which Android does not show.
       dialog id="remove" role="alertdialog" aria-label=`Delete ${doomedName} and its stock counts?`
+        text "This can’t be undone."
         button commandfor="remove" command="close" testId="remove-cancel"
           text "Cancel"
         button press=remove destructive=true commandfor="remove" command="close" testId="remove-confirm"
           text "Delete"
+      dialog id="sign-out" role="alertdialog" aria-label="Sign out of this device?"
+        text "You’ll need the team code to sign in again."
+        button commandfor="sign-out" command="close" testId="sign-out-cancel"
+          text "Cancel"
+        button press=signOut destructive=true commandfor="sign-out" command="close" testId="sign-out-confirm"
+          text "Sign Out"
 
 // Every tab's title, with whether the last change reached the server (React Native's SyncStatus).
 component Bar
@@ -455,16 +489,28 @@ component Bar
     failed: bool
     offline: bool
     web: bool
+    signOut: action
   view
     // Drawn as written on the web, centred to the content's width; on a phone, the platform's bar.
-    header appearance=(web ? "none" : "auto") display="flex" align-items="center" box-sizing="border-box"
+    header appearance=(web ? "none" : "auto") display="flex" flex-wrap="wrap" row-gap="8px" align-items="center" box-sizing="border-box"
       padding="20px max(16px, calc((100% - 55rem) / 2 + 16px)) 12px" background-color="surface"
+      // Sign Out leads on iOS, as the bar's leading item. Where the header is drawn as written (the web,
+      // and Android, whose leading spot is Back or a menu), it trails, as an action does.
+      if not web
+        button press=signOut testId="sign-out" color="brand" margin-right="12px"
+          text "Sign Out"
       text title role="heading" aria-level=1 font-size="1.5rem" font-weight=700 letter-spacing="-0.01em" color="ink.strong" min-width=0
       column flex=1
       row align-items="center" gap="6px" role="status" testId="sync"
         column width="6px" height="6px" border-radius="3px"
           background-color=(saving ? "status.saving" : failed or offline ? "out.ink" : "status.saved")
         text (saving ? "Saving…" : failed ? "Not saved" : offline ? "Offline" : "Saved") font-size="0.75rem" color=(failed or offline ? "out.ink" : "ink.muted") testId="sync-label"
+      // Plain text, quieter than the page's actions: used rarely. 44px tall for a finger; the negative
+      // margins keep its text on the content's edge and the header no taller than the title.
+      if web
+        button press=signOut testId="sign-out" appearance="none" -exact-hover-effect="highlight" class=Press min-height="44px" box-sizing="border-box"
+          margin="-8px -12px -8px 4px" padding="0px 12px" border="none" border-radius="8px" background-color="transparent"
+          text "Sign Out" font-size="0.875rem" font-weight=500 color="brand"
 
 // An "Out of stock" or "Low" pill.
 component Level
