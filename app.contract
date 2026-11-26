@@ -285,7 +285,7 @@ component App
               else
                 column navigationKey=`${e.id}` navigationBar=(android ? "none" : "auto") position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
                   // The route's first child, so on iOS it is the platform's navigation bar with a large title.
-                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, offline=offline, web=(host.web or android), phone=(not host.web), signOut=askSignOut)
+                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, offline=offline, web=(host.web or android), signOut=askSignOut)
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
@@ -481,14 +481,14 @@ component Bar
     failed: bool
     offline: bool
     web: bool
-    phone: bool
     signOut: action
   view
     // Drawn as written on the web, centred to the content's width; on a phone, the platform's bar.
     header appearance=(web ? "none" : "auto") display="flex" flex-wrap="wrap" row-gap="8px" align-items="center" box-sizing="border-box"
       padding="20px max(16px, calc((100% - 55rem) / 2 + 16px)) 12px" background-color="surface"
-      // Sign Out leads on a phone (on iOS the bar's leading item) and trails on the web.
-      if phone
+      // Sign Out leads on iOS, as the bar's leading item. Where the header is drawn as written (the web,
+      // and Android, whose leading spot is Back or a menu), it trails, as an action does.
+      if not web
         button press=signOut testId="sign-out" color="brand" margin-right="12px"
           text "Sign Out"
       text title role="heading" aria-level=1 font-size="1.5rem" font-weight=700 letter-spacing="-0.01em" color="ink.strong" min-width=0
@@ -497,10 +497,12 @@ component Bar
         column width="6px" height="6px" border-radius="3px"
           background-color=(saving ? "status.saving" : failed or offline ? "out.ink" : "status.saved")
         text (saving ? "Saving…" : failed ? "Not saved" : offline ? "Offline" : "Saved") font-size="0.75rem" color=(failed or offline ? "out.ink" : "ink.muted") testId="sync-label"
-      if not phone
-        button press=signOut testId="sign-out" appearance="none" -exact-hover-effect="highlight" class=Press min-height="36px" box-sizing="border-box"
-          margin-left="16px" padding="6px 12px" border="1px solid" border-color="line.field" border-radius="6px" background-color="surface"
-          text "Sign Out" font-size="0.8125rem" font-weight=600 color="brand"
+      // Plain text, quieter than the page's actions: used rarely. 44px tall for a finger; the negative
+      // margins keep its text on the content's edge and the header no taller than the title.
+      if web
+        button press=signOut testId="sign-out" appearance="none" -exact-hover-effect="highlight" class=Press min-height="44px" box-sizing="border-box"
+          margin="-8px -12px -8px 4px" padding="0px 12px" border="none" border-radius="8px" background-color="transparent"
+          text "Sign Out" font-size="0.875rem" font-weight=500 color="brand"
 
 // An "Out of stock" or "Low" pill.
 component Level
