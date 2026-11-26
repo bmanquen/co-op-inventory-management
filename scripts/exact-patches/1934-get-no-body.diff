@@ -1,0 +1,21 @@
+--- a/vendor/ibex/crates/ibex2/src/transport/rustls_http.rs
++++ b/vendor/ibex/crates/ibex2/src/transport/rustls_http.rs
+@@ -717,6 +717,18 @@ fn send(
+                 left,
+             )
+         }
++        // As a browser does, an empty body is sent only for a method that
++        // expects one: a `Content-Length: 0` GET is refused by some servers.
++        None if body.is_empty()
++            && !matches!(parts.method.as_str(), "POST" | "PUT" | "PATCH") =>
++        {
++            run(
++                lease,
++                ureq::http::Request::from_parts(parts, ()),
++                timeout,
++                left,
++            )
++        }
+         None => run(
+             lease,
+             ureq::http::Request::from_parts(parts, body),
