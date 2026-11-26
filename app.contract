@@ -461,7 +461,9 @@ component App
             if storeMatches.length == 0
               text `No stores match “${storeQuery}”` color="ink.empty" padding="12px"
       // React Native asks with Alert.alert (iOS) or the browser's confirm() (web): this question, Cancel and Delete.
+      // The text line makes it an alert: without one it is a chooser, which Android does not show.
       dialog id="remove" role="alertdialog" aria-label=`Delete ${doomedName} and its stock counts?`
+        text "This can’t be undone."
         button commandfor="remove" command="close" testId="remove-cancel"
           text "Cancel"
         button press=remove destructive=true commandfor="remove" command="close" testId="remove-confirm"
