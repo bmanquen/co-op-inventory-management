@@ -56,6 +56,10 @@ test "count stock, see what needs restocking, type a count and undo it"
   // The count field takes digits only: a letter is dropped, and letters alone change nothing.
   type "count-1" "4o"
   expect text "count-1" == "4"
+  // A letter after digits is dropped as it's typed, even though the digits didn't change (expo/exact#1733).
+  type "count-1" "40"
+  type "count-1" "40a"
+  expect text "count-1" == "40"
   type "count-1" "1,500"
   type "count-1" key "Tab"
   clock data
