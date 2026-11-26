@@ -28,10 +28,6 @@ export EXACT_VERSION=${EXACT_VERSION:-$(bun -p 'require("./app.json").version')}
 export EXACT=${EXACT:-$root/../exact}
 pin=$(sed -n 's/^EXACT_COMMIT=//p' scripts/build-web.sh)
 [ "$(git -C "$EXACT" rev-parse HEAD)" = "$pin" ] || { echo "Check out Exact $pin in $EXACT first" >&2; exit 1; }
-# shortcut: until expo/exact#1934 is fixed, Android's fetch sends `Content-Length: 0` on a GET, which Expo Hosting
-# answers with 500. Apply its fix to the checkout (once; it stays applied); delete this when the pin includes the fix.
-patch=scripts/exact-patches/1934-get-no-body.diff
-git -C "$EXACT" apply --reverse --check "$root/$patch" 2>/dev/null || git -C "$EXACT" apply "$root/$patch"
 bun exact.mjs android --bundle --json
 cp target/android/app/outputs/bundle/release/app-release.aab target/CoopInventory.aab
 echo "target/CoopInventory.aab"
