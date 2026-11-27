@@ -260,8 +260,9 @@ component App
 
   view
     // navigationBack names the sheet's close button: a swipe down presses it.
+    // Android otherwise draws white status-bar icons over the white header (seen on a Pixel 7, API 33).
     main navigationKey=`${top(nav).id}` navigationBack="close" navigate=follow testId="app" width="100%" height="100%"
-      display="flex" flex-direction="column" color-scheme="light" background-color="surface"
+      display="flex" flex-direction="column" color-scheme="light" background-color="surface" status-bar-style=(android ? "dark-content" : "auto")
       // The tabs stay in the tree while signed out, hidden, so the routes keep their panels.
       column flex=1 min-height=0 position="relative" display=(signedIn ? "flex" : "none")
         for t in nav.tabs key=t.name
