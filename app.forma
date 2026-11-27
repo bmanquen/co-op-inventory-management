@@ -3,6 +3,9 @@ forma coffee
 // The colours of the React Native app this replaced (and React Navigation's light theme).
 // That app was light-only, so every token is fixed.
 theme
+  // The app's tint. On Android it also seeds Material's whole scheme (bars, tab indicator, sheets,
+  // dialogs, ripples) in place of the device's wallpaper palette.
+  AccentColor = #6f4e37  scheme=fixed
   brand = #6f4e37  scheme=fixed
   ink = #000000  scheme=fixed
   ink.nav-dim = #6b625b  scheme=fixed
