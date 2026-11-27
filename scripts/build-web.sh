@@ -5,7 +5,7 @@ set -euo pipefail
 : "${API_BASE_URL:?Set API_BASE_URL to the deployed API, such as https://bmanquen-inventory-management.expo.app/api}"
 
 # Exact is not on npm: build from this commit of expo/exact (the one the tests last passed on).
-EXACT_COMMIT=33c4daab75da23ed46dcdfb02e5bf803a5a81412
+EXACT_COMMIT=d1a1247d50f0d1967679ce3d21be8b2480688353
 root=$(cd "$(dirname "$0")/.." && pwd)
 export EXACT=${EXACT:-$root/../exact}
 
