@@ -98,8 +98,27 @@ export async function handle(req: Request, db: Client, teamCode: string): Promis
       return res.rowsAffected === 0 ? removed() : send({ ok: true });
     }
     case 'POST adjust': {
-      const { storeId, productId, delta } = body;
+      const { storeId, productId, delta, changeId } = body;
       if (!isId(storeId) || !isId(productId) || !Number.isInteger(delta) || Math.abs(delta) > MAX_COUNT) return send({ error: 'Invalid request.' }, 400);
+      if (changeId !== undefined) {
+        if (typeof changeId !== 'string' || !/^[\w-]{1,64}$/.test(changeId)) return send({ error: 'Invalid request.' }, 400);
+        // A queued change, possibly sent again after a lost reply: the count and its history row
+        // change together, and only if this ID was never applied.
+        const once = `${BOTH_EXIST} AND NOT EXISTS (SELECT 1 FROM stock_changes WHERE id = ?5)`;
+        const [res] = await db.batch(
+          [
+            {
+              sql: `INSERT INTO stock SELECT ?1, ?2, max(0, ?3) WHERE ${once} ON CONFLICT DO UPDATE SET count = min(?4, max(0, count + ?3))`,
+              args: [storeId, productId, delta, MAX_COUNT, changeId],
+            },
+            { sql: `INSERT INTO stock_changes SELECT ?5, ?1, ?2, ?3, ?4 WHERE ${once}`, args: [storeId, productId, delta, Date.now(), changeId] },
+          ],
+          'write',
+        );
+        if (res.rowsAffected > 0) return send({ ok: true });
+        const seen = await db.execute({ sql: 'SELECT 1 FROM stock_changes WHERE id = ?', args: [changeId] });
+        return seen.rows.length ? send({ ok: true }) : removed();
+      }
       // Applied as a delta in SQL so two people tapping at once don't overwrite each other.
       const res = await db.execute({
         sql: `INSERT INTO stock SELECT ?1, ?2, max(0, ?3) WHERE ${BOTH_EXIST} ON CONFLICT DO UPDATE SET count = min(?4, max(0, count + ?3))`,

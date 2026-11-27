@@ -21,6 +21,14 @@ export const SCHEMA = [
     count INTEGER NOT NULL CHECK (count >= 0),
     PRIMARY KEY (store_id, product_id)
   )`,
+  // Each +/− a device queued, by the ID it made: a resend is applied once. Also the stock history.
+  `CREATE TABLE IF NOT EXISTS stock_changes (
+    id TEXT PRIMARY KEY,
+    store_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    delta INTEGER NOT NULL,
+    at INTEGER NOT NULL
+  )`,
 ];
 
 let schema: Promise<unknown> | undefined;
