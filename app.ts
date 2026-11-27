@@ -16,12 +16,12 @@ const isLine = (v: unknown): v is Line =>
   v !== null && typeof v === 'object' && Number.isSafeInteger((v as Line).id) && typeof (v as Line).name === 'string' && Number.isInteger((v as Line).count);
 
 // The team code travels as a bearer token on every request.
-const request = (code: string, path: string, init: RequestInit = {}) =>
-  fetch(`${API}${path}`, { ...init, exactTimeout: 10000, headers: { authorization: `Bearer ${code}`, 'content-type': 'application/json' } });
+const request = (code: string, path: string, init: RequestInit = {}, timeout = 10000) =>
+  fetch(`${API}${path}`, { ...init, exactTimeout: timeout, headers: { authorization: `Bearer ${code}`, 'content-type': 'application/json' } });
 
 // A read: undefined when the code was refused, so the screen can ask for it again.
-async function read(code: string, path: string): Promise<unknown[] | undefined> {
-  const res = await request(code, path);
+async function read(code: string, path: string, timeout?: number): Promise<unknown[] | undefined> {
+  const res = await request(code, path, {}, timeout);
   if (res.status === 401) return undefined;
   if (!res.ok) throw new Error(`The server answered ${res.status}.`);
   const body: unknown = await res.json();
@@ -42,28 +42,23 @@ async function write(code: string, path: string, init: RequestInit) {
   }
 }
 
-// Off the network, the last list the server sent, marked offline.
 async function names(code: string, list: 'products' | 'stores', storage: Storage): Promise<Result<'loadStores'>> {
   if (code === '') return { code, denied: false, items: [], offline: false };
-  let body;
-  try {
-    body = await read(code, `/${list}`);
-  } catch (e) {
-    const seen = unreachable(e) ? await recall<Result<'loadStores'>['items']>(storage, list) : undefined;
-    if (!seen) throw e;
-    return { code, denied: false, items: seen, offline: true };
-  }
-  if (!body) return { code, denied: true, items: [], offline: false };
-  if (!body.every(isRow)) throw new Error('The server returned an invalid list.');
-  const items = body.map((r) => ({ id: String(r.id), name: r.name, out: r.out, low: r.low }));
-  await remember(storage, list, items);
-  return { code, denied: false, items, offline: false };
+  const got = await fromDevice(storage, list, async (timeout) => {
+    const body = await read(code, `/${list}`, timeout);
+    if (!body) return 'denied';
+    if (!body.every(isRow)) throw new Error('The server returned an invalid list.');
+    return body.map((r) => ({ id: String(r.id), name: r.name, out: r.out, low: r.low }));
+  });
+  return got === 'denied' ? { code, denied: true, items: [], offline: false } : { code, denied: false, items: got.value, offline: got.offline };
 }
 
 const isList = (list: string): list is 'products' | 'stores' => list === 'products' || list === 'stores';
 
-// The offline outbox. shortcut: only +/− (and Undo) queue; typed counts, adds and deletes still need
-// the server, and changes go out on a tap or the 10 s poll, not in the background (PRD: offline-first).
+// Local-first: the device's database is what every screen shows. It holds the last lists the server sent
+// and the +/− taps it hasn't taken yet (the outbox); the server only ever updates that copy.
+// shortcut: only +/− (and Undo) queue; typed counts, adds and deletes still need the server, and changes
+// go out on a tap or the 10 s poll, not in the background (PRD: offline-first, #31–#33).
 type Storage = Parameters<Sources['loadStock']>[2];
 type Queued = { id: string; store: string; product: string; delta: number };
 const errCode = (e: unknown) => (e as { code?: string } | null)?.code;
@@ -112,6 +107,22 @@ const recall = async <T>(storage: Storage, key: string): Promise<T | undefined> 
   return rows.length ? JSON.parse(String(rows[0][0])) : undefined;
 };
 
+// Brings the device's copy of one list up to date, then answers with it. With a copy already kept, a weak
+// signal gives up after 3 s and the copy shows, marked offline, instead of the screen waiting 10 s.
+// With nothing kept yet (first launch), the server must answer.
+async function fromDevice<T>(storage: Storage, key: string, fetchFresh: (timeout: number) => Promise<T | 'denied'>) {
+  const kept = await recall<T>(storage, key);
+  try {
+    const fresh = await fetchFresh(kept === undefined ? 10000 : 3000);
+    if (fresh === 'denied') return 'denied' as const;
+    await remember(storage, key, fresh);
+    return { value: fresh, offline: false };
+  } catch (e) {
+    if (!unreachable(e) || kept === undefined) throw e;
+    return { value: kept, offline: true };
+  }
+}
+
 // Taps whose adjustStock hasn't answered yet: the overlay already shows them, so loadStock leaves them out.
 const sending = new Set<string>();
 
@@ -148,30 +159,22 @@ const sources: Sources = {
   },
   loadStores: ([code], _kept, storage) => names(code, 'stores', storage),
   loadProducts: ([code], _kept, storage) => names(code, 'products', storage),
-  // The server's list with this device's waiting changes on top. Off the network it's the last list the
-  // server sent, so the screen keeps counting; `offline` and `waiting` say so.
+  // The device's copy of this store's counts, with its waiting taps on top: sent first, so a reply
+  // that brings the server's counts already includes them.
   loadStock: ([code, store], _kept, storage) =>
     serial(async (): Promise<Result<'loadStock'>> => {
       if (code === '' || store === '') return { store, lines: [], waiting: 0, offline: false };
       await flush(storage, code);
-      let lines: Result<'loadStock'>['lines'];
-      let offline = false;
-      try {
-        const body = (await read(code, `/stores/${encodeURIComponent(store)}/stock`)) ?? [];
+      const got = await fromDevice(storage, `stock:${store}`, async (timeout) => {
+        const body = (await read(code, `/stores/${encodeURIComponent(store)}/stock`, timeout)) ?? [];
         if (!body.every(isLine)) throw new Error('The server returned an invalid stock list.');
-        lines = body.map((l) => ({ id: String(l.id), name: l.name, count: l.count }));
-        await remember(storage, `stock:${store}`, lines);
-      } catch (e) {
-        if (!unreachable(e)) throw e;
-        const seen = await recall<typeof lines>(storage, `stock:${store}`);
-        if (!seen) throw e; // never reached the server for this store: nothing to show
-        lines = seen;
-        offline = true;
-      }
+        return body.map((l) => ({ id: String(l.id), name: l.name, count: l.count }));
+      });
+      let lines = got === 'denied' ? [] : got.value;
       const waiting = await queued(storage, code);
       for (const q of waiting)
         if (q.store === store && !sending.has(q.id)) lines = lines.map((l) => (l.id !== q.product ? l : { ...l, count: Math.min(1_000_000, Math.max(0, l.count + q.delta)) }));
-      return { store, lines, waiting: waiting.length, offline };
+      return { store, lines, waiting: waiting.length, offline: got !== 'denied' && got.offline };
     }),
   // Saved on the device first, then sent; a tap with no connection is kept and sent later.
   adjustStock: async ([code, store, product, delta], _kept, storage) => {
