@@ -1,0 +1,42 @@
+name: Weekly backup
+
+on:
+  schedule:
+    # Mondays at 09:00 UTC (3 or 4 a.m. in Chicago), when nobody is counting stock.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Copy production into a SQLite file
+        run: bun tools/backup.ts backup.db
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+      # The repository is public, and anyone signed in to GitHub can download its artifacts, so only
+      # the encrypted copy leaves this job. Decrypt with:
+      # openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in backup.db.enc -out backup.db
+      - name: Encrypt
+        run: |
+          test -n "$BACKUP_PASSPHRASE"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -in backup.db -out backup.db.enc -pass env:BACKUP_PASSPHRASE
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: production-${{ github.run_number }}
+          path: backup.db.enc
+          if-no-files-found: error
+          # The longest GitHub keeps a public repository's artifacts: about 13 weekly copies.
+          retention-days: 90
