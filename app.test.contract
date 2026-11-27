@@ -209,6 +209,40 @@ test "a server it can't reach is not an empty list"
   expect tree has "no-stores"
   expect tree missing "notice"
 
+test "+/− taps with no connection survive a restart and reach the server once"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/products" {"name": "Decaf"} as test-code
+  clock +10000
+  clock data
+  clock settle
+  tap "plus-1"
+  clock data
+  expect text "count-1" == "1"
+  expect text "sync-label" == "Saved"
+  fail fetch "http://127.0.0.1:8787"
+  tap "plus-1"
+  tap "plus-1"
+  tap "plus-1"
+  // The offline notice slides in above the list.
+  clock data
+  clock settle
+  tap "minus-1"
+  clock data
+  expect text "count-1" == "3"
+  expect text "sync-label" == "Offline · 4 waiting"
+  // The app closes and opens again, still with no connection: the taps were kept on the device.
+  reload
+  clock data
+  expect text "count-1" == "3"
+  expect text "sync-label" == "Offline · 4 waiting"
+  pass fetch "http://127.0.0.1:8787"
+  clock +10000
+  clock data
+  // Nothing is waiting now, so this 3 is the server's own count: each tap arrived once.
+  expect text "sync-label" == "Saved"
+  expect text "count-1" == "3"
+
 test "an old failed delete doesn't say Not saved once later saves work"
   stored code "test-code"
   request POST "/stores" {"name": "Downtown"} as test-code

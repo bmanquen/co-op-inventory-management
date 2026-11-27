@@ -39,6 +39,25 @@ test('+/− never goes below 0, and adds up when two people tap at once', async 
   expect(await json('GET', '/stores/1/stock')).toEqual([{ id: 1, name: 'Decaf', count: 3 }]);
 });
 
+test('a queued change sent twice counts once and is kept in the history', async () => {
+  await call('POST', '/stores', { name: 'Downtown' });
+  await call('POST', '/products', { name: 'Decaf' });
+  const change = { storeId: 1, productId: 1, delta: 2, changeId: 'phone-a-1' };
+  // Two sends at once (a retry racing its lost reply) and one later: all answered OK, applied once.
+  const sends = await Promise.all([call('POST', '/adjust', change), call('POST', '/adjust', change)]);
+  expect(sends.map((r) => r.status)).toEqual([200, 200]);
+  expect((await call('POST', '/adjust', change)).status).toBe(200);
+  await call('POST', '/adjust', { ...change, delta: -5, changeId: 'phone-b-1' });
+  expect(await json('GET', '/stores/1/stock')).toEqual([{ id: 1, name: 'Decaf', count: 0 }]);
+  const history = (await db.execute('SELECT id, delta FROM stock_changes ORDER BY id')).rows.map((r) => [r.id, r.delta]);
+  expect(history).toEqual([['phone-a-1', 2], ['phone-b-1', -5]]);
+  // A new change for a removed store is refused, so the device can drop it; a bad ID never gets in.
+  await call('DELETE', '/stores/1');
+  expect((await call('POST', '/adjust', { ...change, changeId: 'phone-a-2' })).status).toBe(409);
+  expect((await call('POST', '/adjust', { ...change, changeId: 'no spaces' })).status).toBe(400);
+  expect((await db.execute('SELECT count(*) AS n FROM stock_changes')).rows[0].n).toBe(2);
+});
+
 test('a count for a removed store is refused, and removing a store removes its counts', async () => {
   await call('POST', '/stores', { name: 'Downtown' });
   await call('POST', '/products', { name: 'Decaf' });

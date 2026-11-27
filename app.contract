@@ -35,6 +35,8 @@ shape Names
   code: string
   denied: bool
   items: Item[]
+  // The last list the server sent, shown while it can't be reached.
+  offline: bool
 
 shape Line
   id: string
@@ -45,6 +47,9 @@ shape Stock
   // Which store these lines are for: retained lines from another store stay hidden while it loads.
   store: string
   lines: Line[]
+  // +/− taps saved on this device that the server hasn't taken yet, and whether the server was unreachable.
+  waiting: number
+  offline: bool
 
 // Which host draws the app: the store picker is a dropdown on the web and a sheet on phones.
 shape Host
@@ -115,7 +120,7 @@ component App
     : lastWrite == "added" ? replyError(added) : lastWrite == "removed" ? replyError(removed) : "")
   derive failed = not saving and saveError != ""
   // A failed read keeps its last answer (or its empty placeholder), so say the server is unreachable.
-  derive offline = failed(stores) or failed(products) or failed(stock)
+  derive offline = failed(stores) or failed(products) or failed(stock) or stores.offline or products.offline or stock.offline
   derive restock = stock.lines.filter(l => isLow(l.count))
   derive shown = needsOnly ? restock : stock.lines
   // An add field's name already in its list, as typed ("downtown" finds "Downtown"), checked before it's sent.
@@ -291,7 +296,7 @@ component App
               else
                 column navigationKey=`${e.id}` navigationBar=(android ? "none" : "auto") position="absolute" inset=0 display="flex" flex-direction="column" background-color="surface" accent-color="brand"
                   // The route's first child, so on iOS it is the platform's navigation bar with a large title.
-                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, offline=offline, web=(host.web or android), signOut=askSignOut)
+                  Bar(title=(t.name == "stock" ? "Stock" : t.name == "products" ? "Products" : "Stores"), saving=saving, failed=failed, offline=offline, waiting=stock.waiting, web=(host.web or android), signOut=askSignOut)
                   // A web page: the content keeps a readable width, centred, on a wide window.
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
@@ -488,6 +493,7 @@ component Bar
     saving: bool
     failed: bool
     offline: bool
+    waiting: number
     web: bool
     signOut: action
   view
@@ -504,7 +510,7 @@ component Bar
       row align-items="center" gap="6px" role="status" testId="sync"
         column width="6px" height="6px" border-radius="3px"
           background-color=(saving ? "status.saving" : failed or offline ? "out.ink" : "status.saved")
-        text (saving ? "Saving…" : failed ? "Not saved" : offline ? "Offline" : "Saved") font-size="0.75rem" color=(failed or offline ? "out.ink" : "ink.muted") testId="sync-label"
+        text (saving ? "Saving…" : failed ? "Not saved" : offline and waiting > 0 ? `Offline · ${waiting} waiting` : offline ? "Offline" : "Saved") font-size="0.75rem" color=(failed or offline ? "out.ink" : "ink.muted") testId="sync-label"
       // Plain text, quieter than the page's actions: used rarely. 44px tall for a finger; the negative
       // margins keep its text on the content's edge and the header no taller than the title.
       if web
