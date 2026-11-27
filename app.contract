@@ -413,7 +413,8 @@ component App
       row role="tablist" appearance=(host.web ? "none" : "auto") testId="tabs" display=(signedIn ? "flex" : "none") accent-color="brand"
         order=(host.web ? -1 : 0) align-items="center" gap="4px" box-sizing="border-box"
         padding=(host.web ? "8px max(8px, calc((100% - 55rem) / 2 + 8px))" : "0px")
-        background-color=(host.web ? "surface.header" : "transparent") border="none" border-bottom=(host.web ? "1px solid" : "none") border-bottom-color="line"
+        // Android's bar takes the web header's cream and dimmed ink, so Material's pill sits in the brand's colours.
+        background-color=(host.web or android ? "surface.header" : "transparent") color=(android ? "ink.nav-dim" : none) border="none" border-bottom=(host.web ? "1px solid" : "none") border-bottom-color="line"
         for t in nav.tabs key=t.name
           if host.web
             button role="tab" aria-controls=`panel-${t.name}` aria-selected=(nav.tab == t.name) press=tab(t.name) testId=`tab-${t.name}`
