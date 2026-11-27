@@ -222,11 +222,11 @@ test "+/− taps with no connection survive a restart and reach the server once"
   expect text "sync-label" == "Saved"
   fail fetch "http://127.0.0.1:8787"
   tap "plus-1"
-  tap "plus-1"
-  tap "plus-1"
-  // The offline notice slides in above the list.
+  // The offline notice slides in above the list, moving it down.
   clock data
   clock settle
+  tap "plus-1"
+  tap "plus-1"
   tap "minus-1"
   clock data
   expect text "count-1" == "3"

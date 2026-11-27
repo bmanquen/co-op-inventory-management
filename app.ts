@@ -112,6 +112,9 @@ const recall = async <T>(storage: Storage, key: string): Promise<T | undefined> 
   return rows.length ? JSON.parse(String(rows[0][0])) : undefined;
 };
 
+// Taps whose adjustStock hasn't answered yet: the overlay already shows them, so loadStock leaves them out.
+const sending = new Set<string>();
+
 const queued = async (storage: Storage, team: string): Promise<Queued[]> =>
   ((await outbox(storage, (db) => db.query('SELECT id, store, product, delta FROM outbox WHERE code = ? ORDER BY seq', [team])))?.rows ?? []).map(
     ([id, store, product, delta]) => ({ id: String(id), store: String(store), product: String(product), delta: Number(delta) }),
@@ -167,19 +170,24 @@ const sources: Sources = {
       }
       const waiting = await queued(storage, code);
       for (const q of waiting)
-        if (q.store === store) lines = lines.map((l) => (l.id !== q.product ? l : { ...l, count: Math.min(1_000_000, Math.max(0, l.count + q.delta)) }));
+        if (q.store === store && !sending.has(q.id)) lines = lines.map((l) => (l.id !== q.product ? l : { ...l, count: Math.min(1_000_000, Math.max(0, l.count + q.delta)) }));
       return { store, lines, waiting: waiting.length, offline };
     }),
   // Saved on the device first, then sent; a tap with no connection is kept and sent later.
   adjustStock: async ([code, store, product, delta], _kept, storage) => {
     const id = crypto.randomUUID();
-    const kept = await outbox(storage, (db) =>
-      db.execute('INSERT INTO outbox (id, code, store, product, delta) VALUES (?, ?, ?, ?, ?)', [id, code, store, product, delta]),
-    );
-    if (!kept) return write(code, '/adjust', { method: 'POST', body: JSON.stringify({ storeId: Number(store), productId: Number(product), delta }) });
-    // Kept either way: a send that fails here goes out with the next one.
-    const refused = await serial(() => flush(storage, code)).catch(() => '');
-    return { ok: refused === '', error: refused };
+    sending.add(id);
+    try {
+      const kept = await outbox(storage, (db) =>
+        db.execute('INSERT INTO outbox (id, code, store, product, delta) VALUES (?, ?, ?, ?, ?)', [id, code, store, product, delta]),
+      );
+      if (!kept) return await write(code, '/adjust', { method: 'POST', body: JSON.stringify({ storeId: Number(store), productId: Number(product), delta }) });
+      // Kept either way: a send that fails here goes out with the next one.
+      const refused = await serial(() => flush(storage, code)).catch(() => '');
+      return { ok: refused === '', error: refused };
+    } finally {
+      sending.delete(id);
+    }
   },
   setStock: ([code, store, product, count]) =>
     write(code, '/set', { method: 'POST', body: JSON.stringify({ storeId: Number(store), productId: Number(product), count }) }),
