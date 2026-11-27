@@ -243,6 +243,75 @@ test "+/− taps with no connection survive a restart and reach the server once"
   expect text "sync-label" == "Saved"
   expect text "count-1" == "3"
 
+test "offline taps count in the store's totals; signing out warns and forgets them"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/products" {"name": "Decaf"} as test-code
+  request POST "/set" {"storeId": 1, "productId": 1, "count": 5} as test-code
+  clock +10000
+  clock data
+  clock settle
+  expect state stores.items.0.low == 0
+  fail fetch "http://127.0.0.1:8787"
+  tap "minus-1"
+  clock data
+  clock settle
+  tap "minus-1"
+  clock data
+  expect text "count-1" == "3"
+  expect state stores.items.0.low == 1
+  tap "sign-out"
+  clock settle
+  expect text "sign-out-message" == "2 changes on this device haven’t reached the server yet and will be lost. You’ll need the team code to sign in again."
+  tap "sign-out-confirm"
+  clock data
+  pass fetch "http://127.0.0.1:8787"
+  type "code" "test-code"
+  tap "sign-in"
+  clock data
+  clock settle
+  // The two taps went with the device's copy: the server still has 5.
+  expect text "count-1" == "5"
+  expect text "sync-label" == "Saved"
+
+test "a tap for a product removed elsewhere is dropped and says why once"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/products" {"name": "Decaf"} as test-code
+  request POST "/products" {"name": "House Blend"} as test-code
+  clock +10000
+  clock data
+  clock settle
+  fail fetch "http://127.0.0.1:8787"
+  tap "plus-1"
+  clock data
+  request DELETE "/products/1" as test-code
+  pass fetch "http://127.0.0.1:8787"
+  clock +10000
+  clock data
+  expect text "notice" == "That product or store was removed. The list is up to date now."
+  expect tree missing "line-1"
+  clock +10000
+  clock data
+  expect tree missing "notice"
+  expect text "sync-label" == "Saved"
+
+test "a slow server shows the device's copy after 3 seconds"
+  stored code "test-code"
+  request POST "/stores" {"name": "Downtown"} as test-code
+  request POST "/products" {"name": "Decaf"} as test-code
+  clock +10000
+  clock data
+  clock settle
+  tap "plus-1"
+  clock data
+  answer fetch "http://127.0.0.1:8787/stores/1/stock" method GET with 200 [{"id": 1, "name": "Decaf", "count": 9}] after 20000
+  clock +10000
+  clock +3000
+  clock data
+  expect text "sync-label" == "Offline"
+  expect text "count-1" == "1"
+
 test "an old failed delete doesn't say Not saved once later saves work"
   stored code "test-code"
   request POST "/stores" {"name": "Downtown"} as test-code

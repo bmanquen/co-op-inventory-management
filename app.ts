@@ -50,7 +50,8 @@ async function names(code: string, list: 'products' | 'stores', storage: Storage
     if (!body.every(isRow)) throw new Error('The server returned an invalid list.');
     return body.map((r) => ({ id: String(r.id), name: r.name, out: r.out, low: r.low }));
   });
-  return got === 'denied' ? { code, denied: true, items: [], offline: false } : { code, denied: false, items: got.value, offline: got.offline };
+  if (got === 'denied') return { code, denied: true, items: [], offline: false };
+  return { code, denied: false, items: list === 'stores' ? await withWaitingTotals(storage, code, got.value) : got.value, offline: got.offline };
 }
 
 const isList = (list: string): list is 'products' | 'stores' => list === 'products' || list === 'stores';
@@ -123,6 +124,26 @@ async function fromDevice<T>(storage: Storage, key: string, fetchFresh: (timeout
   }
 }
 
+type Lines = Result<'loadStock'>['lines'];
+// Products at a store with this many or fewer count as low; app.contract's `isLow` and the API match.
+const LOW = 3;
+const withTaps = (lines: Lines, taps: Queued[]) =>
+  taps.reduce((ls, q) => ls.map((l) => (l.id !== q.product ? l : { ...l, count: Math.min(1_000_000, Math.max(0, l.count + q.delta)) })), lines);
+
+// A store's out and low totals with this device's waiting taps counted, from its kept stock list.
+async function withWaitingTotals(storage: Storage, team: string, items: Result<'loadStores'>['items']) {
+  const waiting = await queued(storage, team);
+  return Promise.all(
+    items.map(async (s) => {
+      const taps = waiting.filter((q) => q.store === s.id);
+      const kept = taps.length ? await recall<Lines>(storage, `stock:${s.id}`) : undefined;
+      if (!kept) return s;
+      const counts = withTaps(kept, taps).map((l) => l.count);
+      return { ...s, out: counts.filter((n) => n === 0).length, low: counts.filter((n) => n > 0 && n <= LOW).length };
+    }),
+  );
+}
+
 // Taps whose adjustStock hasn't answered yet: the overlay already shows them, so loadStock leaves them out.
 const sending = new Set<string>();
 
@@ -163,18 +184,17 @@ const sources: Sources = {
   // that brings the server's counts already includes them.
   loadStock: ([code, store], _kept, storage) =>
     serial(async (): Promise<Result<'loadStock'>> => {
-      if (code === '' || store === '') return { store, lines: [], waiting: 0, offline: false };
-      await flush(storage, code);
+      if (code === '' || store === '') return { store, lines: [], waiting: 0, offline: false, dropped: '' };
+      // A tap the server refused while sending here is dropped; this answer says why, once.
+      const dropped = await flush(storage, code);
       const got = await fromDevice(storage, `stock:${store}`, async (timeout) => {
         const body = (await read(code, `/stores/${encodeURIComponent(store)}/stock`, timeout)) ?? [];
         if (!body.every(isLine)) throw new Error('The server returned an invalid stock list.');
         return body.map((l) => ({ id: String(l.id), name: l.name, count: l.count }));
       });
-      let lines = got === 'denied' ? [] : got.value;
       const waiting = await queued(storage, code);
-      for (const q of waiting)
-        if (q.store === store && !sending.has(q.id)) lines = lines.map((l) => (l.id !== q.product ? l : { ...l, count: Math.min(1_000_000, Math.max(0, l.count + q.delta)) }));
-      return { store, lines, waiting: waiting.length, offline: got !== 'denied' && got.offline };
+      const lines = withTaps(got === 'denied' ? [] : got.value, waiting.filter((q) => q.store === store && !sending.has(q.id)));
+      return { store, lines, waiting: waiting.length, offline: got !== 'denied' && got.offline, dropped };
     }),
   // Saved on the device first, then sent; a tap with no connection is kept and sent later.
   adjustStock: async ([code, store, product, delta], _kept, storage) => {
@@ -191,6 +211,11 @@ const sources: Sources = {
     } finally {
       sending.delete(id);
     }
+  },
+  // Sign-out: this device keeps nothing of the team's, neither its lists nor its waiting taps.
+  clearDevice: async (_args, _kept, storage) => {
+    await outbox(storage, (db) => db.transaction([{ sql: 'DELETE FROM outbox' }, { sql: 'DELETE FROM seen' }]));
+    return { ok: true, error: '' };
   },
   setStock: ([code, store, product, count]) =>
     write(code, '/set', { method: 'POST', body: JSON.stringify({ storeId: Number(store), productId: Number(product), count }) }),

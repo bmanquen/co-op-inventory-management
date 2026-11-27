@@ -50,6 +50,8 @@ shape Stock
   // +/− taps saved on this device that the server hasn't taken yet, and whether the server was unreachable.
   waiting: number
   offline: bool
+  // Why the server refused a waiting tap this load dropped, else "".
+  dropped: string
 
 // Which host draws the app: the store picker is a dropdown on the web and a sheet on phones.
 shape Host
@@ -109,6 +111,7 @@ component App
   mutation counted as shape Reply parallel refreshes stock, stores
   mutation added as shape Reply refreshes stores, products, stock then afterAdd
   mutation removed as shape Reply refreshes stores, products, stock
+  mutation cleared as shape Reply
 
   // A saved code the server no longer accepts sends the person back to sign in.
   derive denied = stores.code == code and stores.denied
@@ -160,6 +163,7 @@ component App
     showModal("sign-out")
   // Forgets the saved code on this device; the sign-in screen shows again.
   action signOut
+    send cleared = clearDevice()
     code = ""
     undoShown = false
     // So the next person doesn't see this one's failed save as "Not saved".
@@ -301,8 +305,8 @@ component App
                   column flex=1 min-height=0 width="100%" max-width="55rem" margin="0px auto" position="relative"
                     // Why the last change didn't save, or that the counts shown may be old.
                     // A failed add says why under its own field instead.
-                    if (failed and lastWrite != "added") or offline
-                      text ((failed and lastWrite != "added") ? saveError : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
+                    if (failed and lastWrite != "added") or stock.dropped != "" or offline
+                      text ((failed and lastWrite != "added") ? saveError : stock.dropped != "" ? stock.dropped : "Can’t reach the server, so this may be out of date. Trying again every 10 seconds.")
                         role="alert" testId="notice" font-size="0.875rem" color="out.ink" background-color="out.fill" padding="8px 16px"
                     if t.name == "stock"
                       if stores.items.length == 0
@@ -480,7 +484,10 @@ component App
         button press=remove destructive=true commandfor="remove" command="close" testId="remove-confirm"
           text "Delete"
       dialog id="sign-out" role="alertdialog" aria-label="Sign out of this device?"
-        text "You’ll need the team code to sign in again."
+        // Taps not yet on the server are lost with the device's copy, so say how many.
+        text (stock.waiting == 1 ? "1 change on this device hasn’t reached the server yet and will be lost. You’ll need the team code to sign in again."
+          : stock.waiting > 1 ? `${stock.waiting} changes on this device haven’t reached the server yet and will be lost. You’ll need the team code to sign in again.`
+          : "You’ll need the team code to sign in again.") testId="sign-out-message"
         button commandfor="sign-out" command="close" testId="sign-out-cancel"
           text "Cancel"
         button press=signOut destructive=true commandfor="sign-out" command="close" testId="sign-out-confirm"
